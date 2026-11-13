@@ -330,6 +330,35 @@ synthetic room, at the default settings.
 Light and dark themes. Studio is a local tool for one user and has no
 authentication: read [SECURITY.md](SECURITY.md) before exposing it to a network.
 
+### A real room
+
+Every screenshot above shows the synthetic room. These three show the first
+real one: a 13 second phone video of a living room, reconstructed on a laptop
+with MapAnything and SAM 3 in about two and a half minutes. 107 objects came
+out of it.
+
+<p align="center">
+  <img src="docs/images/real-object.png" alt="A real room in Studio: the armchair is selected, 1.27 by 1.13 by 1.02 metres with error bars, resting on the rug, with four overlap flags" width="100%">
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/real-measure.png" alt="The gap between the armchair and the bookcase of the real room: 25.5 cm plus or minus 1.5 cm"></td>
+    <td width="50%"><img src="docs/images/real-frame.png" alt="Keyframe 20 of 24 of the real video, with the upright box of the armchair drawn into the photo"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>The gap between the armchair and the bookcase, with its error bar</sub></td>
+    <td align="center"><sub>The armchair's box, drawn back into the keyframe it was selected in</sub></td>
+  </tr>
+</table>
+
+Read these as "it runs", not as "it is accurate". Nothing in that room was
+measured with a tape, so the 25.5 cm is unchecked. The armchair is a convex
+hull, because no shape generator was run, and the red flags on it are real:
+the hulls of the pillows and bags on and around the chair overlap its hull. What went wrong on the way
+there, and what is still wrong, is written down in
+[docs/BACKENDS.md](docs/BACKENDS.md#the-first-real-scene).
+
 ## Use it from Python
 
 ```python

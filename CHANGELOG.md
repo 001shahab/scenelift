@@ -35,7 +35,7 @@ First public release.
   `Config.save_frames = False`.
 
 - Screenshots of Studio in the README, taken from a running instance on the
-  synthetic room (`docs/images/`).
+  synthetic room (`docs/images/`), and three of the first real room.
 - Live backend tests that need only MapAnything: the contract of the geometry
   backend, and real depth through the core without masks
   (`tests/test_backends_live.py`).

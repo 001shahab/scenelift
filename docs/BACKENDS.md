@@ -53,10 +53,16 @@ scenelift run room.mov -o room --export room.glb     # 2 min 23 s, weights alrea
 | Segmentation | 88.7 s: 3.7 s per frame for the 37 default prompts, 578 masks |
 | Association, fusion, hulls, physics | 5.1 s on the CPU |
 | Scene | 107 objects. The large ones: an armchair of 1.27 x 1.13 x 1.02 m from 7 views, a bookcase of 1.71 x 0.39 x 2.05 m from 5, a shelf unit of 1.31 x 0.55 x 0.94 m from 9, a dog bed from 10, a rug from 9. Then 49 books, 14 figurines, 11 shelf boards, pictures, boxes |
-| Studio | The same video uploaded in the browser gives the same scene. Selection in a keyframe, measuring, fit checks and exports work on it |
+| Studio | The same video, uploaded in the browser, goes through the same pipeline in under three minutes. Selecting in a keyframe and measuring were tried on the result |
 
 What this does **not** show: accuracy. Nothing in that room was measured with
 a tape, so every size above is unchecked.
+
+<p align="center">
+  <img src="images/real-object.png" alt="The real room in Studio with the armchair selected" width="100%">
+</p>
+
+More screenshots of this scene are in the [README](../README.md#a-real-room).
 
 ### What the first contact broke, and what was changed
 
