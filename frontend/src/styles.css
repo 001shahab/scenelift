@@ -2,7 +2,10 @@
    SPDX-License-Identifier: Apache-2.0
 
    SceneLift Studio. The palette is sampled from the 3S Holding logo:
-   sky #8CC2FD, grey #858585, ink #2C232E, mist #E6E7E8. */
+   sky #8CC2FD, grey #858585, ink #2C232E, mist #E6E7E8.
+   Gold and crimson are trim only: hairlines and short strips on the frame of
+   the application. They never carry meaning, so they stay away from data,
+   where amber means "generated" and red means "does not fit". */
 
 /* ------------------------------------------------------------------ tokens */
 :root {
@@ -12,6 +15,9 @@
   --ink: #2c232e;
   --mist: #e6e7e8;
   --amber: #f2a33a;
+  --gold: #b08d3c;
+  --crimson: #b3202a;
+  --gold-line: color-mix(in srgb, var(--gold) 45%, var(--border));
 
   --bg: #f3f4f6;
   --surface: #ffffff;
@@ -56,6 +62,8 @@
   --accent: #8cc2fd;
   --accent-soft: #2a3a52;
   --on-brand: #2c232e;
+  --gold: #d4b36a;
+  --crimson: #e0464e;
 
   --good: #5fd3a0;
   --good-soft: #1d3a2e;
@@ -2161,4 +2169,108 @@ a.icon-btn {
 
 .toast button:hover {
   opacity: 1;
+}
+
+/* ------------------------------------------------------------------ trim */
+/* A gold hairline under the top bar that fades out to the right, and a short
+   crimson strip under the logo. */
+.topbar {
+  position: relative;
+}
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--crimson), var(--crimson)) left bottom / 58px 2px no-repeat,
+    linear-gradient(90deg, var(--gold), transparent 72%) left bottom / 100% 1px no-repeat;
+}
+
+/* a gold ring around the logo, with a gap */
+.brand img {
+  box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 2.5px var(--gold);
+}
+
+.welcome-inner > img {
+  box-shadow: 0 0 0 4px var(--surface), 0 0 0 5px var(--gold), var(--shadow-2);
+}
+
+.tagline {
+  border-left-color: var(--gold-line);
+}
+
+/* a crimson strip marks a title: the headings of the side panel and of dialogs */
+.side-block > h2,
+.modal-head h2 {
+  position: relative;
+}
+
+.side-block > h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 13px;
+  width: 2px;
+  height: 14px;
+  border-radius: 0 1px 1px 0;
+  background: var(--crimson);
+}
+
+.modal-head h2::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  transform: translateY(-50%);
+  border-radius: 0 2px 2px 0;
+  background: var(--crimson);
+}
+
+/* gold hairlines around what floats above the page */
+.modal {
+  border: 1px solid var(--gold-line);
+}
+
+.tool-group,
+.viewport-bar .segmented,
+.legend {
+  border: 1px solid var(--gold-line);
+}
+
+/* the start page: an ornament under the headline, and a gold edge on the cards */
+.welcome h1::after {
+  content: '';
+  display: block;
+  width: 168px;
+  height: 2px;
+  margin: 20px auto 2px;
+  background:
+    linear-gradient(var(--crimson), var(--crimson)) center / 28px 2px no-repeat,
+    linear-gradient(90deg, transparent, var(--gold) 22%, var(--gold) 36%, transparent 36%, transparent 64%, var(--gold) 64%, var(--gold) 78%, transparent) center / 100% 1px no-repeat;
+}
+
+.welcome-points li {
+  position: relative;
+  transition: border-color 0.15s;
+}
+
+.welcome-points li::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 18px;
+  right: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold), transparent 60%);
+}
+
+.welcome-points li:hover {
+  border-color: var(--gold-line);
 }

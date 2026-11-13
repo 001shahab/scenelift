@@ -47,6 +47,8 @@ First public release.
   cabinet and the things in it no longer swallow each other.
 - The frames of one video share one set of camera intrinsics
   (`MapAnythingBackend(share_intrinsics=...)`).
+- Studio: gold hairlines and short crimson strips as trim on the frame of the
+  application, in both themes. The README screenshots predate it.
 
 ### Verified
 
