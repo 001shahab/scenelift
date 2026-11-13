@@ -346,7 +346,7 @@ Points to act on:
 1. The SAM License is a custom licence with use restrictions and trade-control clauses. Read it in full, ideally with legal advice, before depending on it for anything commercial.
 2. For adoption, the default install should work with permissively licensed parts only. Action: evaluate an Apache or MIT segmenter and an MIT image-to-3D model (candidates to verify: TRELLIS, TripoSR) behind the same interfaces, and make the SAM backends an opt-in extra.
 3. The other MapAnything checkpoint, `facebook/map-anything`, is not the Apache one. Read its model card before use.
-4. Laptop mode: geometry on MPS (this part has been run), segmentation on MPS or CPU (not tried yet), no generative completion (convex hulls, clearly flagged). Full mode: one CUDA GPU or a cloud endpoint.
+4. Laptop mode: geometry and segmentation on MPS, no generative completion (convex hulls, clearly flagged). This mode has been run, on one clip; the CPU has not been tried for either model. Full mode: one CUDA GPU or a cloud endpoint. Not run yet.
 
 ## 8. Repository layout
 
