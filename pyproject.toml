@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scenelift"
+description = "Film it. Edit it in 3D. Casual phone video to a metric, editable, object-level 3D scene with error bars on every answer."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Prof. Shahab Anbarjafari", email = "shb@3sholding.com" }]
+maintainers = [{ name = "3S Holding OÜ", email = "shb@3sholding.com" }]
+keywords = [
+    "3d-reconstruction", "computer-vision", "scene-understanding", "metric-depth",
+    "spatial-reasoning", "uncertainty", "gltf", "digital-twin",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+]
+# The version lives in scenelift/__init__.py and the dependencies in
+# requirements.txt, the only requirements file of this repository.
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/001shahab/scenelift"
+Documentation = "https://github.com/001shahab/scenelift/tree/main/docs"
+Issues = "https://github.com/001shahab/scenelift/issues"
+Changelog = "https://github.com/001shahab/scenelift/blob/main/CHANGELOG.md"
+
+[project.scripts]
+scenelift = "scenelift.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "scenelift.__version__" }
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+include = ["scenelift*"]
+
+[tool.setuptools.package-data]
+# the compiled front end of SceneLift Studio ships inside the package
+"scenelift.studio" = ["static/*", "static/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"

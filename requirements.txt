@@ -1,0 +1,29 @@
+# scenelift: the one and only requirements file.
+#
+#   pip install -r requirements.txt
+#
+# This is everything needed for the geometry core, SceneLift Studio
+# (python app.py) and the test suite. It runs on a laptop CPU: no GPU and no
+# model weights. pyproject.toml reads its dependencies from this file, so
+# `pip install -e .` installs exactly the same set.
+#
+# Reconstructing real footage also needs the model backends (PyTorch,
+# MapAnything, SAM 3 and, optionally, SAM 3D Objects). They are separate
+# projects with their own licences and are installed from their own
+# repositories, never from here. See docs/BACKENDS.md.
+
+# Geometry core
+numpy>=1.24
+scipy>=1.10
+opencv-python-headless>=4.8
+trimesh>=4.0
+pillow>=10.0
+
+# SceneLift Studio: the web application behind `python app.py`
+fastapi>=0.110
+uvicorn>=0.27
+python-multipart>=0.0.9
+
+# Tests
+pytest>=7.4
+httpx>=0.25

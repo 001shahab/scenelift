@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="SceneLift Studio. Film it. Edit it in 3D. Phone video to a metric, editable, object-level 3D scene." />
+    <meta name="author" content="Prof. Shahab Anbarjafari, 3S Holding OÜ" />
+    <meta name="theme-color" content="#2C232E" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>SceneLift Studio</title>
+    <script>
+      // set the theme before first paint, so there is no flash
+      try {
+        var t = localStorage.getItem('scenelift.theme')
+        if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        document.documentElement.dataset.theme = t
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

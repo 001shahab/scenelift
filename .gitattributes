@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.glb binary
+*.npz binary
+
+# The compiled front end is build output. Keep it out of diffs and language statistics.
+scenelift/studio/static/** linguist-generated=true
+scenelift/studio/static/assets/*.js -diff
+scenelift/studio/static/assets/*.css -diff
+frontend/package-lock.json linguist-generated=true -diff

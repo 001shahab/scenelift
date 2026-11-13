@@ -1,0 +1,8 @@
+[
+  { "type": "dimension", "object": "table_1", "axis": "length", "true_m": 1.60 },
+  { "type": "dimension", "object": "table_1", "axis": "height", "true_m": 0.74 },
+  { "type": "dimension", "object": "sofa_1", "axis": "length", "true_m": 2.05 },
+  { "type": "distance", "a": "sofa_1", "b": "table_1", "mode": "surface", "true_m": 0.45 },
+  { "type": "fit", "object": "chair_1", "space": [0.6, 0.6, 1.0], "true": true },
+  { "type": "fit", "object": "sofa_1", "space": [1.8, 0.9, 0.9], "true": false }
+]

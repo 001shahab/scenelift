@@ -1,0 +1,35 @@
+# Local only: the author's virtual environment and working notes
+myenv/
+metaData/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+.venv/
+venv/
+
+# Scenes made by SceneLift Studio and the command line
+/scenes/
+*.npz
+
+# Front end: dependencies are restored with `npm install`.
+# The compiled bundle in scenelift/studio/static IS committed, so that
+# `python app.py` works without Node.js.
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

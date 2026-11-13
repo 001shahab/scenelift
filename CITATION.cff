@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use scenelift in your research, please cite it as below."
+title: "scenelift: casual phone video to a metric, editable, object-level 3D scene"
+abstract: >-
+  scenelift turns a short phone video or a few photos into a 3D scene in real
+  metres in which every object is separate. It keeps measured and generated
+  geometry apart, and attaches a calibrated uncertainty to every length and
+  every fit answer.
+type: software
+authors:
+  - family-names: Anbarjafari
+    given-names: Shahab
+    email: shb@3sholding.com
+    affiliation: "3S Holding OÜ"
+version: 0.1.0
+date-released: "2026-11-13"
+license: Apache-2.0
+repository-code: "https://github.com/001shahab/scenelift"
+keywords:
+  - 3D reconstruction
+  - computer vision
+  - scene understanding
+  - spatial reasoning
+  - uncertainty

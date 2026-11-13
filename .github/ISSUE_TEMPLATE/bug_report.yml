@@ -1,0 +1,57 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. A report that can be reproduced gets fixed fastest.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: >-
+        The exact commands or code. If it happens on the synthetic room
+        (`python app.py`, "Try the synthetic room"), say so: that needs no footage.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Geometry core (Python library)
+        - Command line
+        - SceneLift Studio (browser)
+        - Model backends (MapAnything, SAM 3, SAM 3D Objects)
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message or log
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Versions
+      description: scenelift version or commit, Python version, operating system, browser if relevant.
+      placeholder: scenelift 0.1.0, Python 3.12, macOS 15, Chrome 142
+    validations:
+      required: true
+  - type: textarea
+    id: footage
+    attributes:
+      label: Footage
+      description: >-
+        For reconstruction problems on real footage: how many frames, what kind of
+        scene, and a link to the frames if you can share them.

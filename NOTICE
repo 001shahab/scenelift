@@ -1,0 +1,38 @@
+scenelift
+Copyright 2026 3S Holding OÜ
+
+Designed and developed by Prof. Shahab Anbarjafari <shb@3sholding.com>.
+
+This product is licensed under the Apache License, Version 2.0. See LICENSE.
+
+Name and logo
+-------------
+
+The name "3S Holding" and the 3S Holding logo (static/img/logo.png and the
+copies of it in frontend/public and scenelift/studio/static) identify
+3S Holding OÜ. As section 6 of the licence states, the licence does not grant
+permission to use the licensor's trade names, trademarks, service marks or
+product names, except as required for reasonable and customary use in
+describing the origin of this work.
+
+Third-party software
+--------------------
+
+scenelift does not bundle any model weights or model code. The optional model
+backends (MapAnything, SAM 3, SAM 3D Objects) are separate projects, installed
+by the user from their own repositories under their own licences. See
+docs/BACKENDS.md.
+
+The compiled front end in scenelift/studio/static contains the following
+open-source libraries and the packages they depend on. The exact versions are
+recorded in frontend/package-lock.json.
+
+  React and React DOM       MIT licence
+  three.js                  MIT licence
+  @react-three/fiber        MIT licence
+  @react-three/drei         MIT licence
+  zustand                   MIT licence
+  Lucide (lucide-react)     ISC licence
+
+The Python dependencies listed in requirements.txt are installed by the user
+and are not redistributed with this repository.

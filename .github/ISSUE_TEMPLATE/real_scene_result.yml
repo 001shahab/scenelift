@@ -1,0 +1,36 @@
+name: Result on a real scene
+description: Share how scenelift did on your own footage, good or bad
+labels: [real-scene]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Results on real scenes are the most valuable thing you can give this project.
+        Bad results are as useful as good ones.
+  - type: textarea
+    id: scene
+    attributes:
+      label: The scene
+      description: Room or table top or outdoor, lighting, clutter, how many frames or how long a video, which phone.
+    validations:
+      required: true
+  - type: textarea
+    id: backends
+    attributes:
+      label: Backends and hardware
+      description: Versions or commits of MapAnything, SAM 3 and SAM 3D Objects, the checkpoint, the GPU.
+    validations:
+      required: true
+  - type: textarea
+    id: eval
+    attributes:
+      label: Output of `scenelift eval`
+      description: With your tape measurements as ground truth. See the README, section "Evaluate".
+      render: json
+  - type: textarea
+    id: observations
+    attributes:
+      label: What went right and what went wrong
+      description: Missed objects, doubled objects, wrong sizes, rejected completions, floating objects. Screenshots help.
+    validations:
+      required: true
