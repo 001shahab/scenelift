@@ -34,8 +34,38 @@ First public release.
   show the photo an object was selected in. Turn it off with
   `Config.save_frames = False`.
 
+- Screenshots of Studio in the README, taken from a running instance on the
+  synthetic room (`docs/images/`).
+- Live backend tests that need only MapAnything: the contract of the geometry
+  backend, and real depth through the core without masks
+  (`tests/test_backends_live.py`).
+
+### Verified
+
+- The test suite in a fresh Python 3.13 environment on macOS (Apple silicon).
+- Studio by hand in Chrome, every panel, on the synthetic room.
+- The MapAnything wrapper on real weights, on Apple MPS, with one phone video.
+  See [docs/BACKENDS.md](docs/BACKENDS.md#status-read-this-first).
+
+### Fixed while verifying
+
+- Studio: labels in the 3D view could come up empty, or throw a DOM error,
+  when the view was rebuilt. They now render into their own layer.
+- Studio: the camera frames the objects instead of the whole room, so a scene
+  opens at a useful zoom.
+- Studio: a selected object keeps its colour instead of being tinted.
+- Studio: **Duplicate** puts the copy next to the original, not inside it.
+- Studio: uploading real footage without the model backends says which
+  backend is missing.
+- Command line: an unknown object or a missing scene gives a one-line error
+  and exit code 2 instead of a traceback. Every subcommand has a help line.
+- `Scene.summary()` returns plain Python numbers, not NumPy scalars.
+
 ### Known gaps
 
-- The three model backend wrappers have not been run on real weights yet. See
-  section 0 of [docs/DESIGN.md](docs/DESIGN.md).
+- The SAM 3 and SAM 3D Objects wrappers have not been run on real weights yet,
+  so no real scene with separated objects has been reconstructed. See section 0
+  of [docs/DESIGN.md](docs/DESIGN.md).
+- On real video the focal length estimated by MapAnything drifts within one
+  clip. Not investigated yet.
 - All acceptance thresholds and uncertainty constants were set on synthetic data.

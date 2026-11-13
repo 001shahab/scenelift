@@ -55,8 +55,10 @@ def main(argv=None) -> int:
     p.add_argument("--export", default=None, help="also export, e.g. scene.glb")
     p.add_argument("--reference", nargs=3, metavar=("OBJECT", "AXIS", "METRES"), default=None)
 
-    for name in ("info", "size", "place"):
-        q = sub.add_parser(name)
+    for name, text in (("info", "list the objects of a scene"),
+                       ("size", "length, width and height of an object, with error bars"),
+                       ("place", "free floor spots where an object could stand")):
+        q = sub.add_parser(name, help=text)
         q.add_argument("scene")
         if name != "info":
             q.add_argument("object")
@@ -79,10 +81,12 @@ def main(argv=None) -> int:
     p.add_argument("scene"); p.add_argument("object")
     p.add_argument("axis", choices=["length", "width", "height"]); p.add_argument("metres", type=float)
 
-    p = sub.add_parser("export"); p.add_argument("scene"); p.add_argument("path")
+    p = sub.add_parser("export", help="write the scene as .glb, .obj or .ply")
+    p.add_argument("scene"); p.add_argument("path")
     p.add_argument("--background", action="store_true")
 
-    p = sub.add_parser("eval"); p.add_argument("scene"); p.add_argument("ground_truth")
+    p = sub.add_parser("eval", help="accuracy and calibration against tape-measure ground truth")
+    p.add_argument("scene"); p.add_argument("ground_truth")
 
     p = sub.add_parser("studio", help="open SceneLift Studio, the browser UI")
     p.add_argument("--host", default=None, help="interface to bind (default 127.0.0.1)")
@@ -123,56 +127,61 @@ def main(argv=None) -> int:
         _print_info(scene)
         return 0
 
-    scene = Scene.load(a.scene)
-    if a.cmd == "info":
-        _print_info(scene)
-    elif a.cmd == "size":
-        for m in query.dimensions(scene, a.object).values():
-            print(m)
-    elif a.cmd == "measure":
-        print(query.distance(scene, a.a, a.b, a.mode))
-    elif a.cmd == "fit":
-        if a.between:
-            print(query.fits_between(scene, a.object, a.between[0], a.between[1], a.clearance))
-        elif a.space:
-            print(query.fits_in_space(scene, a.object, a.space, clearance=a.clearance))
-        else:
-            ap.error("fit needs --space W D H or --between A B")
-    elif a.cmd == "place":
-        res = query.find_placements(scene, a.object)
-        if not res:
-            print("no free observed floor area is large enough")
-        for r in res:
-            print(f"x = {r['center_xy'][0]:.2f} m, y = {r['center_xy'][1]:.2f} m, "
-                  f"turned {r['yaw_deg']:.0f} deg, spare {100 * r['spare_m']:.0f} cm")
-    elif a.cmd == "edit":
-        if a.op == "remove":
-            scene.remove(a.object)
-        elif a.op == "move":
-            if len(a.values) != 3:
-                ap.error("move needs dx dy dz")
-            scene.translate(a.object, a.values)
-        elif a.op == "rotate":
-            if len(a.values) != 1:
-                ap.error("rotate needs one angle in degrees")
-            scene.rotate(a.object, a.values[0])
-        elif a.op == "duplicate":
-            print(scene.duplicate(a.object, tuple(a.values) if len(a.values) == 3 else (0.5, 0.0, 0.0)))
-        scene.save(a.scene)
-        _print_info(scene)
-    elif a.cmd == "calibrate":
-        f = scene.calibrate(query.dimensions(scene, a.object)[a.axis].value, a.metres)
-        scene.save(a.scene)
-        print(f"scale factor applied: {f:.4f}")
-    elif a.cmd == "export":
-        scene.export(a.path, include_background=a.background)
-    elif a.cmd == "eval":
-        from .eval import evaluate
-        res = evaluate(scene, a.ground_truth)
-        res.pop("rows", None)
-        print(json.dumps(res, indent=2))
+    try:
+        scene = Scene.load(a.scene)
+        if a.cmd == "info":
+            _print_info(scene)
+        elif a.cmd == "size":
+            for m in query.dimensions(scene, a.object).values():
+                print(m)
+        elif a.cmd == "measure":
+            print(query.distance(scene, a.a, a.b, a.mode))
+        elif a.cmd == "fit":
+            if a.between:
+                print(query.fits_between(scene, a.object, a.between[0], a.between[1], a.clearance))
+            elif a.space:
+                print(query.fits_in_space(scene, a.object, a.space, clearance=a.clearance))
+            else:
+                ap.error("fit needs --space W D H or --between A B")
+        elif a.cmd == "place":
+            res = query.find_placements(scene, a.object)
+            if not res:
+                print("no free observed floor area is large enough")
+            for r in res:
+                print(f"x = {r['center_xy'][0]:.2f} m, y = {r['center_xy'][1]:.2f} m, "
+                      f"turned {r['yaw_deg']:.0f} deg, spare {100 * r['spare_m']:.0f} cm")
+        elif a.cmd == "edit":
+            if a.op == "remove":
+                scene.remove(a.object)
+            elif a.op == "move":
+                if len(a.values) != 3:
+                    ap.error("move needs dx dy dz")
+                scene.translate(a.object, a.values)
+            elif a.op == "rotate":
+                if len(a.values) != 1:
+                    ap.error("rotate needs one angle in degrees")
+                scene.rotate(a.object, a.values[0])
+            elif a.op == "duplicate":
+                print(scene.duplicate(a.object, tuple(a.values) if len(a.values) == 3 else (0.5, 0.0, 0.0)))
+            scene.save(a.scene)
+            _print_info(scene)
+        elif a.cmd == "calibrate":
+            f = scene.calibrate(query.dimensions(scene, a.object)[a.axis].value, a.metres)
+            scene.save(a.scene)
+            print(f"scale factor applied: {f:.4f}")
+        elif a.cmd == "export":
+            scene.export(a.path, include_background=a.background)
+        elif a.cmd == "eval":
+            from .eval import evaluate
+            res = evaluate(scene, a.ground_truth)
+            res.pop("rows", None)
+            print(json.dumps(res, indent=2))
+    except (KeyError, ValueError, OSError) as e:
+        # a wrong object name, a bad value or a missing scene folder: say so in one line
+        text = e.args[0] if isinstance(e, KeyError) and e.args else e
+        print(f"scenelift: error: {text}", file=sys.stderr)
+        return 2
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

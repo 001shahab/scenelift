@@ -29,6 +29,15 @@
   <a href="docs/API.md">REST API</a>
 </p>
 
+<p align="center">
+  <a href="#scenelift-studio"><img src="docs/images/studio-measure.png" alt="SceneLift Studio: a reconstructed room in 3D, with the gap between a table and a cabinet measured as 86.5 cm plus or minus 4.1 cm" width="100%"></a>
+</p>
+
+<p align="center">
+  <sub>SceneLift Studio on the built-in synthetic room. The gap between the table and the cabinet is measured on the
+  reconstruction, not guessed: 86.5 ± 4.1 cm against a true 84.7 cm. The warning says that one end of it rests on geometry no camera saw.</sub>
+</p>
+
 ---
 
 ## Quick start
@@ -69,12 +78,14 @@ scenelift is version 0.1 and it is honest about what that means.
 | | State |
 |---|---|
 | **Geometry core**: every step from keyframes to physics, editing, queries with error bars, selection, save, load, export, command line, evaluation | Implemented. Tested end to end on a synthetic room with exact ground truth, where each view gets its own scale error (about 5 percent) and depth noise |
-| **SceneLift Studio**: REST API and browser front end | Implemented, with API tests on the synthetic room |
-| **Model backends**: wrappers for MapAnything, SAM 3 and SAM 3D Objects | Written from each project's README and demo code. **Not yet run on real weights.** Expect small fixes on first contact |
+| **SceneLift Studio**: REST API and browser front end | Implemented, with API tests on the synthetic room. Every panel was exercised by hand in Chrome; the screenshots below come from that run |
+| **Geometry backend**: the MapAnything wrapper | **Runs on real weights**, on an Apple-silicon laptop (MPS), unchanged. One phone video so far, with no tape measurements, so this shows that it works, not how accurate it is. Details in [docs/BACKENDS.md](docs/BACKENDS.md#status-read-this-first) |
+| **Segmentation and completion backends**: the SAM 3 and SAM 3D Objects wrappers | Written from each project's README and demo code. **Not yet run on real weights**: both checkpoints are gated. Until SAM 3 runs, real footage gives geometry, cameras, floor and walls, but no separate objects |
 | Trained components of our own, the real-photo benchmark, texture baking, background inpainting, Gaussian splat export | Not built yet. See the [roadmap](#roadmap) |
 
 The synthetic test proves that the geometry and the bookkeeping are right. It
-does not prove quality on real rooms. That is the next milestone, and
+does not prove quality on real rooms. No complete real scene, with objects
+separated, has been reconstructed yet. That is the next milestone, and
 [results on your own footage](https://github.com/001shahab/scenelift/issues/new?template=real_scene_result.yml)
 are the most useful contribution you can make.
 
@@ -191,7 +202,7 @@ the examples, and working with scenes that were already reconstructed.
 | Command | Does |
 |---|---|
 | `python app.py` | Starts SceneLift Studio at <http://localhost:8000> |
-| `pytest -q` | Runs the test suite on the synthetic room, on the CPU |
+| `pytest -q` | Runs the test suite on the synthetic room, on the CPU (about a minute) |
 | `python examples/quickstart.py` | Reconstructs, measures, edits and exports from a script |
 | `pip install -e .` | Optional. Puts the `scenelift` command on your PATH. Without it, use `python -m scenelift.cli` |
 
@@ -214,6 +225,16 @@ python app.py --help                   # every option
 The front end is React, TypeScript and three.js. It is already compiled into
 the Python package, so `python app.py` is the only thing to run.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/studio-overview-dark.png">
+    <img src="docs/images/studio-overview-light.png" alt="SceneLift Studio: object list, 3D view with keyframes underneath, and the scene inspector" width="100%">
+  </picture>
+</p>
+
+Every screenshot in this section was taken from a running Studio on the
+synthetic room, at the default settings.
+
 **Make a scene**
 
 - *Synthetic room.* A table, a box standing on it and a cabinet turned by 20
@@ -225,6 +246,17 @@ the Python package, so `python app.py` is the only thing to run.
 - *Your footage.* Drop a short video or a few photos. Each pipeline stage
   reports its progress. This needs the model backends.
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/studio-new-scene.png" alt="The New scene dialog with the options of the synthetic room"></td>
+    <td width="50%"><img src="docs/images/studio-pipeline.png" alt="The pipeline stages with their timings while a scene is being built"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Choose the views, the noise and what the shape generator does</sub></td>
+    <td align="center"><sub>Every stage of the pipeline reports in, with its time</sub></td>
+  </tr>
+</table>
+
 **Look at it**
 
 - A 3D view with orbit, zoom and a top-down view. Toggle surfaces, measured
@@ -234,6 +266,17 @@ the Python package, so `python app.py` is the only thing to run.
 - The keyframes sit under the 3D view. Open one, click an object in the photo
   to select it, or drag a box around several.
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/studio-provenance.png" alt="Provenance view from behind the objects: seen surfaces in blue, generated surfaces in amber"></td>
+    <td width="50%"><img src="docs/images/studio-frame.png" alt="A keyframe with the selected cabinet outlined by its upright box"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Provenance, seen from where no camera stood: blue was measured, amber was generated</sub></td>
+    <td align="center"><sub>Click an object in a keyframe to select it. Its upright box is drawn into the photo</sub></td>
+  </tr>
+</table>
+
 **Edit it**
 
 - Move in steps along X, Y and Z, turn about the vertical axis, duplicate,
@@ -242,6 +285,10 @@ the Python package, so `python app.py` is the only thing to run.
   table is removed.
 - Enter one size you know. The whole scene is rescaled and the shared scale
   error is replaced by the error of your tape measure.
+
+<p align="center">
+  <img src="docs/images/studio-object.png" alt="The Object tab: sizes with error bars, the observed share of the surface, and the move and turn controls" width="100%">
+</p>
 
 **Ask it**
 
@@ -260,6 +307,25 @@ the Python package, so `python app.py` is the only thing to run.
   applied to each view, the room, timings per stage, the edit history, every
   tunable number used, and downloads as glTF, OBJ, PLY, a point cloud or the
   scene folder.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/studio-fit.png" alt="The Fit tab: the table does not fit a 1.0 by 0.6 by 1.0 metre space, with the shortfall per axis"></td>
+    <td width="50%"><img src="docs/images/studio-evaluate.png" alt="The Evaluate tab: mean error 2.0 percent, coverage and fit accuracy against the exact ground truth"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Fit: a probability and the margin per axis, and free floor spots drawn into the 3D view</sub></td>
+    <td align="center"><sub>Evaluate: accuracy and calibration against ground truth</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/studio-tools.png" alt="The Tools tab: the measure_distance tool called by hand, with its JSON answer"></td>
+    <td width="50%"><img src="docs/images/studio-welcome.png" alt="The welcome page of SceneLift Studio"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Tools: the calls a language model would make, and the JSON it gets back</sub></td>
+    <td align="center"><sub>The first page: one click builds the synthetic room</sub></td>
+  </tr>
+</table>
 
 Light and dark themes. Studio is a local tool for one user and has no
 authentication: read [SECURITY.md](SECURITY.md) before exposing it to a network.
@@ -516,8 +582,8 @@ never bundled.
 
 | Role | Default | Code and weights licence | Hardware |
 |---|---|---|---|
-| Geometry | MapAnything, checkpoint `facebook/map-anything-apache` | Apache 2.0 code, Apache 2.0 checkpoint | CUDA recommended. Apple MPS and CPU to be tested |
-| Segmentation | SAM 3 | SAM License (custom, not an OSI licence) | CUDA |
+| Geometry | MapAnything, checkpoint `facebook/map-anything-apache` | Apache 2.0 code, Apache 2.0 checkpoint | CUDA recommended. Runs on Apple MPS: 24 frames in 11 s on an M5 Max. CPU not tried |
+| Segmentation | SAM 3 | SAM License (custom, not an OSI licence). The checkpoint is gated on Hugging Face | CUDA. Not run yet |
 | Completion (optional) | SAM 3D Objects | SAM License (custom, not an OSI licence) | CUDA, required by its code |
 
 Please read before you build on them:
@@ -531,9 +597,9 @@ Please read before you build on them:
    or MIT segmenter and an MIT image-to-3D model (candidates to verify:
    TRELLIS, TripoSR) behind the same interfaces, with the SAM backends as an
    opt-in.
-4. Laptop mode: geometry on MPS, segmentation on MPS or CPU, no generative
-   completion (convex hulls, clearly flagged). Full mode: one CUDA GPU or a
-   cloud endpoint.
+4. Laptop mode: geometry on MPS (this part has been run), segmentation on MPS
+   or CPU (not tried yet), no generative completion (convex hulls, clearly
+   flagged). Full mode: one CUDA GPU or a cloud endpoint.
 
 Install steps, the smoke test and how to write your own backend:
 [docs/BACKENDS.md](docs/BACKENDS.md).
@@ -607,11 +673,31 @@ it, the scene document and geometry payload, every query, every edit,
 calibration, selection in a keyframe, the tools, evaluation, all export
 formats, and persistence across a restart.
 
+Last recorded run, 13 November 2026, Python 3.13 on macOS (Apple silicon):
+57 passed and 3 skipped in 55 s. The three skipped tests are the live backend
+tests below. With MapAnything installed and a real clip given: 59 passed and
+1 skipped in 86 s.
+
 **What this does not show**: behaviour with real depth errors (smeared edges,
 non-rigid drift, reflective and transparent surfaces), real segmentation
 errors, and real generated shapes that are only approximately right.
-`tests/test_backends_live.py` is the smoke test for the real backends and is
-skipped unless they are installed.
+
+`tests/test_backends_live.py` is the smoke test for the real backends. It is
+skipped unless they are installed and `SCENELIFT_TEST_INPUT` points at a video
+or a folder of photos:
+
+```bash
+SCENELIFT_TEST_INPUT=/path/to/room.mp4 pytest -q tests/test_backends_live.py
+```
+
+| Live test | Needs | State |
+|---|---|---|
+| The geometry backend returns what the pipeline assumes: metric depth, intrinsics, a rigid pose, confidence in 0 to 1 | MapAnything | Passes on a 13 s phone video of a room |
+| Real depth through scale harmonisation, gravity, floor and walls, fusion, save and load | MapAnything | Passes on the same video: 24 views agree on scale to within 1 percent, floor and walls found |
+| The whole pipeline, with objects | MapAnything and SAM 3 | Not run yet. Skipped |
+
+These two passes mean that the code runs on real depth. With no tape
+measurements of that room, they say nothing about accuracy.
 
 ## Configuration
 
@@ -678,7 +764,7 @@ scenelift/
 frontend/              React + TypeScript + three.js source of the front end
 static/img/logo.png    3S Holding logo
 tests/                 test_synthetic.py, test_studio.py, test_backends_live.py
-docs/                  DESIGN.md, API.md, SCENE_FORMAT.md, BACKENDS.md
+docs/                  DESIGN.md, API.md, SCENE_FORMAT.md, BACKENDS.md, images/ (the screenshots)
 examples/              quickstart.py, llm_tools.py, ground_truth.example.json
 ```
 
@@ -749,13 +835,15 @@ baselines, and the paper, the demo and the benchmark live on the same day.
 6. All acceptance thresholds and uncertainty constants were set on synthetic data.
 7. Outdoor scenes with no floor plane and no walls fall back to the gravity prior.
 8. Symmetric objects can come out turned by 90 or 180 degrees: harmless for geometry, wrong for texture.
-9. The model backend wrappers have not been run on real weights yet.
+9. Of the model backend wrappers, only MapAnything has been run on real weights. SAM 3 and SAM 3D Objects have not, so no real scene with separated objects exists yet.
 
 ## Questions
 
 **Do I need a GPU?** Not for the geometry core, Studio with the synthetic
 room, the tests, or working with scenes that are already reconstructed.
-Reconstructing real footage needs the model backends, and those want a CUDA GPU.
+Reconstructing real footage needs the model backends. MapAnything has been
+run on an Apple-silicon laptop without one. SAM 3 has not been tried there,
+and SAM 3D Objects requires CUDA.
 
 **Can I use it commercially?** scenelift itself is Apache 2.0, so yes. The
 default segmentation and completion backends use the SAM License, which is a

@@ -92,16 +92,16 @@ function Mover({ o }: { o: SceneObjectDoc }) {
       <div className="mover">
         <NumberField label="Step" unit="m" value={step} min={0.01} step={0.05} onChange={setStep} />
         <div className="pad" aria-label="Move the object">
-          <Button size="sm" disabled={busy} title="Move along +Y" icon={<ArrowUp size={15} />}
-                  onClick={() => move([0, step, 0])}>Y</Button>
-          <Button size="sm" disabled={busy} title="Move along -X" icon={<ArrowLeft size={15} />}
-                  onClick={() => move([-step, 0, 0])}>X</Button>
-          <Button size="sm" disabled={busy} title="Move along +X" icon={<ArrowRight size={15} />}
-                  onClick={() => move([step, 0, 0])}>X</Button>
-          <Button size="sm" disabled={busy} title="Move along -Y" icon={<ArrowDown size={15} />}
-                  onClick={() => move([0, -step, 0])}>Y</Button>
-          <Button size="sm" disabled={busy} title="Raise" onClick={() => move([0, 0, step])}>Z +</Button>
-          <Button size="sm" disabled={busy} title="Lower" onClick={() => move([0, 0, -step])}>Z −</Button>
+          <Button size="sm" disabled={busy} title="Move along +Y" aria-label="Move along +Y"
+                  icon={<ArrowUp size={15} />} onClick={() => move([0, step, 0])}>Y</Button>
+          <Button size="sm" disabled={busy} title="Move along -X" aria-label="Move along -X"
+                  icon={<ArrowLeft size={15} />} onClick={() => move([-step, 0, 0])}>X</Button>
+          <Button size="sm" disabled={busy} title="Move along +X" aria-label="Move along +X"
+                  icon={<ArrowRight size={15} />} onClick={() => move([step, 0, 0])}>X</Button>
+          <Button size="sm" disabled={busy} title="Move along -Y" aria-label="Move along -Y"
+                  icon={<ArrowDown size={15} />} onClick={() => move([0, -step, 0])}>Y</Button>
+          <Button size="sm" disabled={busy} title="Raise" aria-label="Raise" onClick={() => move([0, 0, step])}>Z +</Button>
+          <Button size="sm" disabled={busy} title="Lower" aria-label="Lower" onClick={() => move([0, 0, -step])}>Z −</Button>
         </div>
       </div>
       <div className="mover">
@@ -181,7 +181,10 @@ export function ObjectTab() {
   const warnings = o.flags.map(flagText)
 
   const duplicate = async () => {
-    const res = await edit({ op: 'duplicate', object: o.id, offset: [0.5, 0, 0] })
+    // put the copy beside the original, clear of its footprint, not inside it
+    const [L, W] = o.obb.size
+    const reach = Math.abs(Math.cos(o.obb.yaw)) * L + Math.abs(Math.sin(o.obb.yaw)) * W
+    const res = await edit({ op: 'duplicate', object: o.id, offset: [+(reach + 0.1).toFixed(3), 0, 0] })
     if (res?.new_id) select(res.new_id)
   }
 

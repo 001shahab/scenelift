@@ -171,8 +171,10 @@ def create_app(settings: Optional[StudioSettings] = None) -> FastAPI:
         """Reconstruct a scene from real footage with the model backends."""
         backends = backend_status(settings.sam3d_repo)
         if not (backends["mapanything"] and backends["sam3"]):
-            raise HTTPException(503, "The model backends (MapAnything and SAM 3) are not installed on "
-                                     "this server. See docs/BACKENDS.md, or try the synthetic demo.")
+            state = ", ".join(f"{label} {'installed' if backends[key] else 'missing'}"
+                              for key, label in (("mapanything", "MapAnything"), ("sam3", "SAM 3")))
+            raise HTTPException(503, f"Real footage needs both model backends on this server ({state}). "
+                                     "See docs/BACKENDS.md, or try the synthetic demo.")
         named = [(f, Path(f.filename or "").name) for f in files]
         videos = [x for x in named if Path(x[1]).suffix.lower() in VIDEO_EXT]
         images = [x for x in named if Path(x[1]).suffix.lower() in IMAGE_EXT]

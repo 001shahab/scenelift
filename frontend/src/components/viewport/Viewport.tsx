@@ -6,7 +6,7 @@ import { Canvas } from '@react-three/fiber'
 import {
   Box, Camera, CircleDot, Grid3x3, Layers, Maximize, ScanEye, SquareDashed, Tag, View,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 
 import { IconButton, Segmented, Spinner } from '@/components/ui'
 import { useStudio, type ViewSettings } from '@/state/store'
@@ -38,9 +38,12 @@ export function Viewport() {
   const frameScene = useStudio((s) => s.frameScene)
   const hoveredId = useStudio((s) => s.hoveredId)
   const palette = PALETTE[theme]
+  const labels = useRef<HTMLDivElement>(null)
 
   return (
     <div className="viewport" style={{ cursor: hoveredId ? 'pointer' : undefined }}>
+      {/* before the canvas in the tree, so the node exists when the 3D scene first renders */}
+      <div ref={labels} className="viewport-labels" />
       <Canvas
         flat
         dpr={[1, 2]}
@@ -51,7 +54,7 @@ export function Viewport() {
         <ambientLight intensity={1.9} />
         <directionalLight position={[3, 8, 4]} intensity={1.9} />
         <directionalLight position={[-5, 3, -4]} intensity={0.6} />
-        {scene && geometry && <SceneGraph doc={scene} geometry={geometry} palette={palette} />}
+        {scene && geometry && <SceneGraph doc={scene} geometry={geometry} palette={palette} labels={labels} />}
         {scene && <CameraRig doc={scene} />}
         <OrbitControls makeDefault enableDamping dampingFactor={0.12} maxPolarAngle={Math.PI * 0.495} />
       </Canvas>

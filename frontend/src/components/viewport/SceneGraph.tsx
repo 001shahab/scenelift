@@ -6,7 +6,7 @@
 
 import { Html, Line } from '@react-three/drei'
 import { useThree, type ThreeEvent } from '@react-three/fiber'
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode, type RefObject } from 'react'
 import * as THREE from 'three'
 
 import type { CameraDoc, SceneDoc, SceneObjectDoc, Vec3 } from '@/api/types'
@@ -23,6 +23,12 @@ export function ZUp({ children }: { children: ReactNode }) {
 }
 
 const toThree = (p: Vec3) => new THREE.Vector3(p[0], p[2], -p[1])
+
+/** The DOM node that holds every label and tag drawn over the canvas. It is
+ * handed to drei's <Html> explicitly: left to itself, <Html> attaches to a
+ * node that changes once the canvas has connected its events, and a label
+ * mounted before that moment is left empty. */
+type LabelLayer = RefObject<HTMLElement>
 
 function useDisposable<T extends { dispose: () => void } | null>(make: () => T, deps: unknown[]): T {
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,9 +91,10 @@ interface ObjectNodeProps {
   measured: Cloud
   view: ViewSettings
   state: 'selected' | 'secondary' | 'hovered' | 'idle'
+  labels: LabelLayer
 }
 
-function ObjectNode({ doc, mesh, measured, view, state }: ObjectNodeProps) {
+function ObjectNode({ doc, mesh, measured, view, state, labels }: ObjectNodeProps) {
   const select = useStudio((s) => s.select)
   const setHovered = useStudio((s) => s.setHovered)
 
@@ -119,7 +126,8 @@ function ObjectNode({ doc, mesh, measured, view, state }: ObjectNodeProps) {
         <mesh geometry={surface} {...handlers}>
           <meshStandardMaterial
             vertexColors flatShading roughness={0.9} metalness={0} side={THREE.DoubleSide}
-            emissive={accent} emissiveIntensity={state === 'idle' ? 0 : state === 'hovered' ? 0.1 : 0.2}
+            // lift the surface a little without shifting its hue: the outline and the label carry the accent
+            emissive="#ffffff" emissiveIntensity={state === 'idle' ? 0 : state === 'hovered' ? 0.03 : 0.05}
           />
         </mesh>
       )}
@@ -143,7 +151,7 @@ function ObjectNode({ doc, mesh, measured, view, state }: ObjectNodeProps) {
               transparent opacity={state === 'idle' ? 0.7 : 1} />
       )}
       {view.labels && (
-        <Html position={[cx, cy, top + 0.05]} center zIndexRange={[20, 0]}>
+        <Html position={[cx, cy, top + 0.05]} center zIndexRange={[20, 0]} portal={labels}>
           <button
             type="button"
             className={`label3d is-${state}`}
@@ -247,7 +255,7 @@ function Cameras({ cameras, color }: { cameras: CameraDoc[]; color: string }) {
 }
 
 // ------------------------------------------------------------------ answers
-function Answers({ overlay, color }: { overlay: Overlay; color: string }) {
+function Answers({ overlay, color, labels }: { overlay: Overlay; color: string; labels: LabelLayer }) {
   const { segment, placements } = overlay
   return (
     <group>
@@ -260,7 +268,7 @@ function Answers({ overlay, color }: { overlay: Overlay; color: string }) {
               <meshBasicMaterial color={color} depthTest={false} />
             </mesh>
           ))}
-          <Html position={midpoint(segment.a, segment.b)} center zIndexRange={[30, 0]}>
+          <Html position={midpoint(segment.a, segment.b)} center zIndexRange={[30, 0]} portal={labels}>
             <span className="tag3d">{segment.text}</span>
           </Html>
         </group>
@@ -276,7 +284,7 @@ function Answers({ overlay, color }: { overlay: Overlay; color: string }) {
         return (
           <group key={i}>
             <Line points={outline} color={GOOD} lineWidth={2.2} />
-            <Html position={[x, y, z]} center zIndexRange={[30, 0]}>
+            <Html position={[x, y, z]} center zIndexRange={[30, 0]} portal={labels}>
               <span className="tag3d tag3d-good">{i + 1} · spare {length(p.spare_m)}</span>
             </Html>
           </group>
@@ -303,14 +311,28 @@ export function CameraRig({ doc }: { doc: SceneDoc }) {
     if (!controls) return
     const lo = toThree(doc.bounds.min)
     const hi = toThree(doc.bounds.max)
-    const centre = lo.clone().add(hi).multiplyScalar(0.5)
-    const radius = Math.max(lo.distanceTo(hi) / 2, 0.5)
+    const whole = Math.max(lo.distanceTo(hi) / 2, 0.5)
+    let centre = lo.clone().add(hi).multiplyScalar(0.5)
+    let radius = whole
+    // Frame the objects, not the far corners of the room: the background
+    // reaches well past them and would leave the objects small in the middle.
+    if (doc.objects.length > 0 && preset !== 'top') {
+      const box = new THREE.Box3()
+      for (const o of doc.objects) {
+        const reach = Math.hypot(o.obb.size[0], o.obb.size[1]) / 2
+        const [x, y, z] = o.obb.center
+        box.expandByPoint(toThree([x - reach, y - reach, z - o.obb.size[2] / 2]))
+        box.expandByPoint(toThree([x + reach, y + reach, z + o.obb.size[2] / 2]))
+      }
+      centre = box.getCenter(new THREE.Vector3())
+      radius = Math.min(whole, Math.max(box.getSize(new THREE.Vector3()).length() / 2 * 1.25, 0.5))
+    }
     const offset = preset === 'top'
       ? new THREE.Vector3(0, 2.6 * radius, 0.001)
-      : new THREE.Vector3(1.25, 1.05, 1.45).normalize().multiplyScalar(2.4 * radius)
+      : new THREE.Vector3(1.25, 1.05, 1.45).normalize().multiplyScalar(3.1 * radius)
     camera.position.copy(centre).add(offset)
     camera.near = Math.max(radius / 500, 0.01)
-    camera.far = radius * 60
+    camera.far = whole * 60
     camera.updateProjectionMatrix()
     controls.target.copy(centre)
     controls.update()
@@ -326,9 +348,12 @@ interface SceneGraphProps {
   doc: SceneDoc
   geometry: SceneGeometry
   palette: ScenePalette
+  /** where labels and tags are attached: a node laid over the canvas */
+  labels: RefObject<HTMLElement | null>
 }
 
-export function SceneGraph({ doc, geometry, palette }: SceneGraphProps) {
+export function SceneGraph({ doc, geometry, palette, labels: labelLayer }: SceneGraphProps) {
+  const labels = labelLayer as LabelLayer
   const view = useStudio((s) => s.view)
   const overlay = useStudio((s) => s.overlay)
   const selectedId = useStudio((s) => s.selectedId)
@@ -350,10 +375,11 @@ export function SceneGraph({ doc, geometry, palette }: SceneGraphProps) {
         const state = o.id === selectedId ? 'selected'
           : o.id === secondaryId ? 'secondary'
           : o.id === hoveredId ? 'hovered' : 'idle'
-        return <ObjectNode key={o.id} doc={o} mesh={g.mesh} measured={g.measured} view={view} state={state} />
+        return <ObjectNode key={o.id} doc={o} mesh={g.mesh} measured={g.measured} view={view} state={state}
+                           labels={labels} />
       })}
       {view.cameras && doc.cameras.length > 0 && <Cameras cameras={doc.cameras} color={palette.camera} />}
-      <Answers overlay={overlay} color={palette.measure} />
+      <Answers overlay={overlay} color={palette.measure} labels={labels} />
       <axesHelper args={[0.4]} />
     </ZUp>
   )

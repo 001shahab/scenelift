@@ -39,7 +39,8 @@ def main() -> None:
 
     print("\nObjects")
     for row in scene.summary():
-        print(f"  {row['id']:<12} {row['size_m']} m, rests on {row['support']}, "
+        size = " x ".join(f"{s:.2f}" for s in row["size_m"])
+        print(f"  {row['id']:<12} {size} m, rests on {row['support']}, "
               f"{row['observed_fraction']:.0%} observed")
     print(f"\nScale: any length in this scene is known to +/- {scene.scale.sigma_rel:.1%} (1 sigma)")
 

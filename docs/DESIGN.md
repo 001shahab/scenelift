@@ -19,9 +19,13 @@ Implemented, with automated tests in `tests/test_studio.py`:
 
 - SceneLift Studio: a web application started with `python app.py`. It is a REST API over the library (`scenelift/studio/`, documented in `docs/API.md`) and a React front end (`frontend/`, compiled into `scenelift/studio/static`). It builds the synthetic room on a laptop CPU, shows the scene in 3D with observed and generated geometry in different colours, and exposes every edit, query and selection of this document. This is the first version of the interactive viewer of roadmap item M4.2. Real footage in Studio goes through the same backend wrappers as the command line, so the note below applies to it as well.
 
+Written, and run once on real model weights:
+
+- The MapAnything wrapper in `scenelift/backends/`. On 13 November 2026 it ran unchanged on an Apple-silicon laptop (MPS) on one hand-held phone video of a room: 24 keyframes in 11 seconds, and the core then harmonised the 24 views to within 1 percent of each other and found the floor and the walls. Nothing in that room was measured with a tape, so this shows that the wrapper and the core accept real depth, not how accurate the result is. Two observations from that run are recorded in `docs/BACKENDS.md`: the estimated focal length drifts within one clip, and one wall was found twice.
+
 Written but not yet run on real model weights:
 
-- The three wrappers in `scenelift/backends/` for MapAnything, SAM 3 and SAM 3D Objects. They follow the usage shown in each project's README and demo code, read on 13 November 2026. They were written in an environment with no GPU and no weights, so expect small fixes on first contact. `tests/test_backends_live.py` is the smoke test for that day.
+- The wrappers for SAM 3 and SAM 3D Objects. They follow the usage shown in each project's README and demo code, read on 13 November 2026. Both checkpoints are gated and SAM 3D Objects requires CUDA, so expect small fixes on first contact. Until SAM 3 runs, no real scene with separated objects exists. `tests/test_backends_live.py` is the smoke test: its two geometry tests pass, its full-pipeline test is still skipped.
 
 Not built yet (see the roadmap in section 12):
 
@@ -326,7 +330,7 @@ scenelift's own code is Apache 2.0. Backends are separate installs and are never
 
 | Role | Default | Code and weights licence | Hardware |
 |---|---|---|---|
-| Geometry | MapAnything, checkpoint `facebook/map-anything-apache` | Apache 2.0 code, Apache 2.0 checkpoint | CUDA recommended; Apple MPS and CPU to be tested |
+| Geometry | MapAnything, checkpoint `facebook/map-anything-apache` | Apache 2.0 code, Apache 2.0 checkpoint | CUDA recommended; runs on Apple MPS; CPU not tried |
 | Segmentation | SAM 3 | SAM License (custom, not an OSI licence) | CUDA |
 | Completion | SAM 3D Objects | SAM License (custom, not an OSI licence) | CUDA required by its code |
 
@@ -335,7 +339,7 @@ Points to act on:
 1. The SAM License is a custom licence with use restrictions and trade-control clauses. Read it in full, ideally with legal advice, before depending on it for anything commercial.
 2. For adoption, the default install should work with permissively licensed parts only. Action: evaluate an Apache or MIT segmenter and an MIT image-to-3D model (candidates to verify: TRELLIS, TripoSR) behind the same interfaces, and make the SAM backends an opt-in extra.
 3. The other MapAnything checkpoint, `facebook/map-anything`, is not the Apache one. Read its model card before use.
-4. Laptop mode: geometry on MPS, segmentation on MPS or CPU, no generative completion (convex hulls, clearly flagged). Full mode: one CUDA GPU or a cloud endpoint.
+4. Laptop mode: geometry on MPS (this part has been run), segmentation on MPS or CPU (not tried yet), no generative completion (convex hulls, clearly flagged). Full mode: one CUDA GPU or a cloud endpoint.
 
 ## 8. Repository layout
 

@@ -188,10 +188,12 @@ class Scene:
         rows = []
         for o in self.objects.values():
             L, W, H = o.obb["size"]
-            rows.append({"id": o.id, "label": o.label, "size_m": [round(L, 3), round(W, 3), round(H, 3)],
+            # plain Python numbers, so a row prints and serialises cleanly
+            rows.append({"id": o.id, "label": o.label,
+                         "size_m": [round(float(L), 3), round(float(W), 3), round(float(H), 3)],
                          "position_m": [round(float(c), 3) for c in o.obb["center"]],
-                         "support": o.support, "views": o.n_views,
-                         "observed_fraction": round(o.observed_fraction, 2), "flags": list(o.flags)})
+                         "support": o.support, "views": int(o.n_views),
+                         "observed_fraction": round(float(o.observed_fraction), 2), "flags": list(o.flags)})
         return rows
 
     # ---- editing ----
