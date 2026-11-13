@@ -39,13 +39,24 @@ First public release.
 - Live backend tests that need only MapAnything: the contract of the geometry
   backend, and real depth through the core without masks
   (`tests/test_backends_live.py`).
+- SAM 3 runs through the implementation in Hugging Face `transformers`
+  (`pip install transformers`), which is not tied to CUDA. Run on Apple
+  silicon so far. Meta's own package needs Linux with CUDA.
+- Association handles nested masks: a mask must account for a share of the
+  object as the photo sees it, and the reverse (`Config.assoc_cover`). A
+  cabinet and the things in it no longer swallow each other.
+- The frames of one video share one set of camera intrinsics
+  (`MapAnythingBackend(share_intrinsics=...)`).
 
 ### Verified
 
 - The test suite in a fresh Python 3.13 environment on macOS (Apple silicon).
 - Studio by hand in Chrome, every panel, on the synthetic room.
-- The MapAnything wrapper on real weights, on Apple MPS, with one phone video.
-  See [docs/BACKENDS.md](docs/BACKENDS.md#status-read-this-first).
+- Real footage end to end, with MapAnything and SAM 3 on Apple MPS: one phone
+  video becomes a scene of 107 separate objects in about two and a half
+  minutes, from the command line and from Studio. No ground truth, so this
+  says nothing about accuracy.
+  See [docs/BACKENDS.md](docs/BACKENDS.md#the-first-real-scene).
 
 ### Fixed while verifying
 
@@ -60,12 +71,23 @@ First public release.
 - Command line: an unknown object or a missing scene gives a one-line error
   and exit code 2 instead of a traceback. Every subcommand has a help line.
 - `Scene.summary()` returns plain Python numbers, not NumPy scalars.
+- Geometry: confidence is mapped by rank within a frame. The earlier linear
+  rescaling threw away most of a large plain surface in some frames.
+- Physics: an object that ends a few centimetres below an uneven floor rests
+  on the floor, not on the nearest wall.
+- Studio: a crowded scene shows name tags for the 12 largest objects, plus
+  the hovered and the selected one.
+- Studio: the Scene tab says how many of the walls are square to the axes
+  instead of claiming that all are.
+- Studio: SAM 3 is reported as installed when `transformers` provides it.
 
 ### Known gaps
 
-- The SAM 3 and SAM 3D Objects wrappers have not been run on real weights yet,
-  so no real scene with separated objects has been reconstructed. See section 0
-  of [docs/DESIGN.md](docs/DESIGN.md).
-- On real video the focal length estimated by MapAnything drifts within one
-  clip. Not investigated yet.
+- The SAM 3D Objects wrapper has not been run on real weights, and nothing has
+  been run on CUDA. See section 0 of [docs/DESIGN.md](docs/DESIGN.md).
+- Real footage has been run on one clip, without ground truth.
+- Parts and contents (shelf boards, books in a bookcase) are separate objects
+  that overlap their container.
+- Without shape completion, an object whose base was not seen can be reported
+  as resting on a wall, or as floating.
 - All acceptance thresholds and uncertainty constants were set on synthetic data.

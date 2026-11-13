@@ -82,12 +82,22 @@ def test_geometry_through_the_core(footage, tmp_path):
 
 
 def test_real_pipeline(tmp_path):
-    pytest.importorskip("sam3")
+    """Needs the gated SAM 3 weights: `hf auth login`, or HF_TOKEN in the environment."""
+    transformers = pytest.importorskip("transformers")
+    if not hasattr(transformers, "Sam3Model"):
+        pytest.skip("this version of transformers has no SAM 3")
     from scenelift import Config, SceneLift
 
     cfg = Config(max_frames=8)
-    scene = SceneLift.default(cfg, sam3d_repo=os.environ.get("SAM3D_REPO")).run(SRC)
+    try:
+        lift = SceneLift.default(cfg, sam3d_repo=os.environ.get("SAM3D_REPO"))
+    except RuntimeError as e:
+        if "gated" in str(e):
+            pytest.skip("no access to the gated SAM 3 weights")
+        raise
+    scene = lift.run(SRC)
     assert len(scene) > 0
+    assert all(o.n_views >= 2 for o in scene.objects.values())
     scene.save(tmp_path / "scene")
     scene.export(tmp_path / "scene.glb")
     for row in scene.summary():

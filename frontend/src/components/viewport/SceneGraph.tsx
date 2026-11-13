@@ -91,10 +91,12 @@ interface ObjectNodeProps {
   measured: Cloud
   view: ViewSettings
   state: 'selected' | 'secondary' | 'hovered' | 'idle'
+  /** false when the scene is crowded and this object is neither large nor in use */
+  named: boolean
   labels: LabelLayer
 }
 
-function ObjectNode({ doc, mesh, measured, view, state, labels }: ObjectNodeProps) {
+function ObjectNode({ doc, mesh, measured, view, state, named, labels }: ObjectNodeProps) {
   const select = useStudio((s) => s.select)
   const setHovered = useStudio((s) => s.setHovered)
 
@@ -150,7 +152,7 @@ function ObjectNode({ doc, mesh, measured, view, state, labels }: ObjectNodeProp
               lineWidth={state === 'idle' || state === 'hovered' ? 1.2 : 2.4}
               transparent opacity={state === 'idle' ? 0.7 : 1} />
       )}
-      {view.labels && (
+      {view.labels && (named || state !== 'idle') && (
         <Html position={[cx, cy, top + 0.05]} center zIndexRange={[20, 0]} portal={labels}>
           <button
             type="button"
@@ -344,6 +346,17 @@ export function CameraRig({ doc }: { doc: SceneDoc }) {
 }
 
 // ------------------------------------------------------------------ scene
+/** A real room has a hundred objects, and a hundred name tags hide the room.
+ *  Beyond this many, only the largest objects keep their tag; the others show
+ *  it when the pointer is over them or when they are selected. */
+const MAX_LABELS = 12
+
+function largestObjects(objects: SceneObjectDoc[], n: number): Set<string> {
+  if (objects.length <= n) return new Set(objects.map((o) => o.id))
+  const volume = (o: SceneObjectDoc) => o.obb.size[0] * o.obb.size[1] * o.obb.size[2]
+  return new Set([...objects].sort((a, b) => volume(b) - volume(a)).slice(0, n).map((o) => o.id))
+}
+
 interface SceneGraphProps {
   doc: SceneDoc
   geometry: SceneGeometry
@@ -360,6 +373,7 @@ export function SceneGraph({ doc, geometry, palette, labels: labelLayer }: Scene
   const secondaryId = useStudio((s) => s.secondaryId)
   const hoveredId = useStudio((s) => s.hoveredId)
   const background = useDisposable(() => cloudGeometry(geometry.background), [geometry.background])
+  const named = useMemo(() => largestObjects(doc.objects, MAX_LABELS), [doc.objects])
 
   return (
     <ZUp>
@@ -376,7 +390,7 @@ export function SceneGraph({ doc, geometry, palette, labels: labelLayer }: Scene
           : o.id === secondaryId ? 'secondary'
           : o.id === hoveredId ? 'hovered' : 'idle'
         return <ObjectNode key={o.id} doc={o} mesh={g.mesh} measured={g.measured} view={view} state={state}
-                           labels={labels} />
+                           named={named.has(o.id)} labels={labels} />
       })}
       {view.cameras && doc.cameras.length > 0 && <Cameras cameras={doc.cameras} color={palette.camera} />}
       <Answers overlay={overlay} color={palette.measure} labels={labels} />

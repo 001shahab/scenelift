@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import importlib.util
 import threading
+from functools import lru_cache
 import time
 from dataclasses import fields
 from pathlib import Path
@@ -37,17 +38,22 @@ RECONSTRUCT_STAGES = ("models",) + PIPELINE_STAGES + ("save",)
 # --------------------------------------------------------------------------
 # backends
 # --------------------------------------------------------------------------
-def backend_status(sam3d_repo: Optional[str]) -> dict:
-    """Which model backends can be imported. Nothing heavy is loaded here."""
-    def installed(module: str) -> bool:
-        try:
-            return importlib.util.find_spec(module) is not None
-        except (ImportError, ValueError):
-            return False
+@lru_cache(maxsize=None)
+def _installed(module: str) -> bool:
+    try:
+        return importlib.util.find_spec(module) is not None
+    except (ImportError, ValueError):
+        return False
 
+
+def backend_status(sam3d_repo: Optional[str]) -> dict:
+    """Which model backends can be imported. Nothing heavy is loaded here, and
+    nothing is downloaded: whether the gated SAM 3 weights can be fetched is
+    only known when the first reconstruction starts."""
     sam3d = bool(sam3d_repo) and (Path(sam3d_repo) / "notebook" / "inference.py").is_file()
-    return {"torch": installed("torch"), "mapanything": installed("mapanything"),
-            "sam3": installed("sam3"), "sam3d": sam3d, "sam3d_repo": sam3d_repo}
+    return {"torch": _installed("torch"), "mapanything": _installed("mapanything"),
+            "sam3": _installed("torch") and _installed("transformers.models.sam3"),
+            "sam3d": sam3d, "sam3d_repo": sam3d_repo}
 
 
 class BackendPool:
@@ -66,7 +72,7 @@ class BackendPool:
 
         with self._lock:
             if device not in self._geometry:
-                self._geometry[device] = MapAnythingBackend(device=device)
+                self._geometry[device] = MapAnythingBackend(device=device, conf_at_floor=cfg.min_conf)
             if device not in self._segmenter:
                 self._segmenter[device] = Sam3Backend(cfg.prompts, device=device)
             segmenter = self._segmenter[device]

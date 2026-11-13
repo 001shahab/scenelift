@@ -9,9 +9,10 @@ everyone: bug reports, results on real footage, new backends, documentation.
 1. **Results on real scenes.** Run the pipeline on your own footage, measure a
    few lengths with a tape, and report `scenelift eval` output. This is
    milestone M0 of the [roadmap](docs/DESIGN.md#12-roadmap-to-a-release-people-will-star).
-2. **Fixes to the backend wrappers** in `scenelift/backends/`. MapAnything has
-   been run on real weights. SAM 3 and SAM 3D Objects follow the upstream
-   READMEs but have not met real weights yet.
+2. **Fixes to the backend wrappers** in `scenelift/backends/`. MapAnything and
+   SAM 3 have been run on real weights, on Apple silicon only. SAM 3D Objects
+   follows the upstream README but has not met real weights yet, and nothing
+   has been run on CUDA.
 3. **Permissively licensed backends** behind the same three interfaces
    (`scenelift/backends/base.py`): an Apache or MIT segmenter, an MIT
    image-to-3D model.

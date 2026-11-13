@@ -79,13 +79,13 @@ scenelift is version 0.1 and it is honest about what that means.
 |---|---|
 | **Geometry core**: every step from keyframes to physics, editing, queries with error bars, selection, save, load, export, command line, evaluation | Implemented. Tested end to end on a synthetic room with exact ground truth, where each view gets its own scale error (about 5 percent) and depth noise |
 | **SceneLift Studio**: REST API and browser front end | Implemented, with API tests on the synthetic room. Every panel was exercised by hand in Chrome; the screenshots below come from that run |
-| **Geometry backend**: the MapAnything wrapper | **Runs on real weights**, on an Apple-silicon laptop (MPS), unchanged. One phone video so far, with no tape measurements, so this shows that it works, not how accurate it is. Details in [docs/BACKENDS.md](docs/BACKENDS.md#status-read-this-first) |
-| **Segmentation and completion backends**: the SAM 3 and SAM 3D Objects wrappers | Written from each project's README and demo code. **Not yet run on real weights**: both checkpoints are gated. Until SAM 3 runs, real footage gives geometry, cameras, floor and walls, but no separate objects |
+| **Real footage, end to end**: MapAnything for geometry, SAM 3 for masks, then the core | **Runs**, on an Apple-silicon laptop with no CUDA: a 13 second phone video becomes a scene with separate objects in about two and a half minutes, from the command line and from Studio. One clip so far, and nothing in it was measured with a tape, so this shows that it works, not how accurate it is. What came out, what had to be fixed and what is still wrong: [docs/BACKENDS.md](docs/BACKENDS.md#the-first-real-scene) |
+| **Completion backend**: the SAM 3D Objects wrapper | Written from the project's README and demo code. **Not yet run on real weights**: it needs CUDA. Without it every object is the convex hull of its measured points, flagged as such |
 | Trained components of our own, the real-photo benchmark, texture baking, background inpainting, Gaussian splat export | Not built yet. See the [roadmap](#roadmap) |
 
 The synthetic test proves that the geometry and the bookkeeping are right. It
-does not prove quality on real rooms. No complete real scene, with objects
-separated, has been reconstructed yet. That is the next milestone, and
+does not prove quality on real rooms. One real room has been reconstructed,
+with no ground truth. Measured accuracy on real scenes is the next milestone, and
 [results on your own footage](https://github.com/001shahab/scenelift/issues/new?template=real_scene_result.yml)
 are the most useful contribution you can make.
 
@@ -582,8 +582,8 @@ never bundled.
 
 | Role | Default | Code and weights licence | Hardware |
 |---|---|---|---|
-| Geometry | MapAnything, checkpoint `facebook/map-anything-apache` | Apache 2.0 code, Apache 2.0 checkpoint | CUDA recommended. Runs on Apple MPS: 24 frames in 11 s on an M5 Max. CPU not tried |
-| Segmentation | SAM 3 | SAM License (custom, not an OSI licence). The checkpoint is gated on Hugging Face | CUDA. Not run yet |
+| Geometry | MapAnything, checkpoint `facebook/map-anything-apache` | Apache 2.0 code, Apache 2.0 checkpoint | CUDA recommended. Runs on Apple MPS: 24 frames in 20 s on an M5 Max. CPU not tried |
+| Segmentation | SAM 3, through Hugging Face `transformers` | SAM License (custom, not an OSI licence). The checkpoint is gated on Hugging Face | CUDA recommended. Runs on Apple MPS: 3.7 s per frame for 37 prompts. CUDA and CPU not tried |
 | Completion (optional) | SAM 3D Objects | SAM License (custom, not an OSI licence) | CUDA, required by its code |
 
 Please read before you build on them:
@@ -597,9 +597,9 @@ Please read before you build on them:
    or MIT segmenter and an MIT image-to-3D model (candidates to verify:
    TRELLIS, TripoSR) behind the same interfaces, with the SAM backends as an
    opt-in.
-4. Laptop mode: geometry on MPS (this part has been run), segmentation on MPS
-   or CPU (not tried yet), no generative completion (convex hulls, clearly
-   flagged). Full mode: one CUDA GPU or a cloud endpoint.
+4. Laptop mode: geometry and segmentation on MPS, no generative completion
+   (convex hulls, clearly flagged). This mode has been run. Full mode: one
+   CUDA GPU or a cloud endpoint. Not run yet.
 
 Install steps, the smoke test and how to write your own backend:
 [docs/BACKENDS.md](docs/BACKENDS.md).
@@ -674,9 +674,15 @@ calibration, selection in a keyframe, the tools, evaluation, all export
 formats, and persistence across a restart.
 
 Last recorded run, 13 November 2026, Python 3.13 on macOS (Apple silicon):
-57 passed and 3 skipped in 55 s. The three skipped tests are the live backend
-tests below. With MapAnything installed and a real clip given: 59 passed and
-1 skipped in 86 s.
+62 passed and 3 skipped in 68 s. The three skipped tests are the live backend
+tests below. With MapAnything and SAM 3 installed and a real clip given: 65
+passed in about 3 minutes.
+
+Five of these tests exist because of the first real scene. Real segmenters
+return nested masks (a "cabinet" mask covers the books in it), real floors
+come out a few centimetres from flat, and real confidence maps differ in
+level from frame to frame. The synthetic room now has a nested-mask variant
+in both orders, and the other three are small unit tests.
 
 **What this does not show**: behaviour with real depth errors (smeared edges,
 non-rigid drift, reflective and transparent surfaces), real segmentation
@@ -694,10 +700,10 @@ SCENELIFT_TEST_INPUT=/path/to/room.mp4 pytest -q tests/test_backends_live.py
 |---|---|---|
 | The geometry backend returns what the pipeline assumes: metric depth, intrinsics, a rigid pose, confidence in 0 to 1 | MapAnything | Passes on a 13 s phone video of a room |
 | Real depth through scale harmonisation, gravity, floor and walls, fusion, save and load | MapAnything | Passes on the same video: 24 views agree on scale to within 1 percent, floor and walls found |
-| The whole pipeline, with objects | MapAnything and SAM 3 | Not run yet. Skipped |
+| The whole pipeline, with objects, saved and exported | MapAnything and SAM 3 | Passes on the same video |
 
-These two passes mean that the code runs on real depth. With no tape
-measurements of that room, they say nothing about accuracy.
+These passes mean that the code runs on real depth and real masks. With no
+tape measurements of that room, they say nothing about accuracy.
 
 ## Configuration
 
@@ -717,7 +723,7 @@ scene = SceneLift.default(cfg).run("room.mp4")
 | Geometry filtering | `min_conf` (0.3), `depth_edge_rel` (0.04), `max_depth` (12 m) |
 | Scale | `scale_gate` (0.25), `scale_min_matches` (300), `backbone_scale_sigma` (0.04) |
 | Layout | `floor_max_tilt_deg` (35), `wall_min_fraction` (0.04), `max_walls` (4) |
-| Association | `prompts`, `mask_erode_px` (1), `assoc_voxel` (0.05 m), `assoc_overlap` (0.25), `assoc_projection` (0.7), `min_views_per_object` (2) |
+| Association | `prompts`, `mask_erode_px` (1), `assoc_voxel` (0.05 m), `assoc_overlap` (0.25), `assoc_cover` (0.3), `assoc_projection` (0.7), `min_views_per_object` (2) |
 | Fusion | `fuse_voxel` (0.01 m), `background_voxel` (0.025 m) |
 | Completion | `observed_tau` (0.025 m), `max_freespace_violation` (0.25), `min_fit_quality` (0.72) |
 | Physics | `support_tol` (0.06 m), `max_push` (0.04 m) |
@@ -792,7 +798,8 @@ logic belongs in the library, with a test there.
 
 ## Roadmap
 
-**M0. First real scenes.** Install the three backends on one CUDA machine, run
+**M0. First real scenes.** Started: one room, on a laptop, without ground
+truth ([what was observed](docs/BACKENDS.md#the-first-real-scene)). Still to do: install the three backends on one CUDA machine, run
 the live smoke test on phone videos, fix the wrappers, review every
 intermediate by eye, and record tape measurements. Decision gate: is the scale
 error below 8 percent, and are objects separated in most scenes? If not, the
@@ -835,15 +842,19 @@ baselines, and the paper, the demo and the benchmark live on the same day.
 6. All acceptance thresholds and uncertainty constants were set on synthetic data.
 7. Outdoor scenes with no floor plane and no walls fall back to the gravity prior.
 8. Symmetric objects can come out turned by 90 or 180 degrees: harmless for geometry, wrong for texture.
-9. Of the model backend wrappers, only MapAnything has been run on real weights. SAM 3 and SAM 3D Objects have not, so no real scene with separated objects exists yet.
+9. Real footage has been run on one clip, on Apple silicon, with no ground truth. Accuracy on real scenes is unmeasured. SAM 3D Objects has not been run at all, and nothing has been run on CUDA.
+10. A segmenter returns parts and contents as objects of their own: the boards of a shelf unit, the books in a bookcase. They overlap their container, whose own points include them. In the first real scene 71 of 107 objects carry an overlap flag.
+11. Without shape completion, an object whose base was not seen ends above the floor and is reported as resting on a wall, or as floating.
+12. Objects thinner than the 5 cm association grid, such as books standing side by side, can be mixed up between views.
+13. A pan from one spot gives the depth model little parallax. In the first real scene consecutive views agree to about 1 cm where the clip starts and to 3 to 6 cm where it ends. Walk around the room instead.
 
 ## Questions
 
 **Do I need a GPU?** Not for the geometry core, Studio with the synthetic
 room, the tests, or working with scenes that are already reconstructed.
-Reconstructing real footage needs the model backends. MapAnything has been
-run on an Apple-silicon laptop without one. SAM 3 has not been tried there,
-and SAM 3D Objects requires CUDA.
+Reconstructing real footage needs the model backends. MapAnything and SAM 3
+have been run on an Apple-silicon laptop without one: about two and a half
+minutes for a 13 second video. SAM 3D Objects requires CUDA.
 
 **Can I use it commercially?** scenelift itself is Apache 2.0, so yes. The
 default segmentation and completion backends use the SAM License, which is a

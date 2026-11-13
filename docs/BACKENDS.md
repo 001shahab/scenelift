@@ -20,48 +20,100 @@ points, clearly marked as such. Nothing is invented.
 
 ## Status: read this first
 
-The three wrappers follow the usage shown in each project's README and demo
-code, read on 13 November 2026.
-
 | Wrapper | State |
 |---|---|
-| `backends/mapanything.py` | **Run on real weights**, unchanged, on an Apple-silicon laptop (MPS). One clip so far |
-| `backends/sam3.py` | **Not run yet.** The checkpoint is gated on Hugging Face and access is granted by hand. Expect small fixes on first contact |
+| `backends/mapanything.py` | **Run on real weights**, on an Apple-silicon laptop (MPS). One clip so far |
+| `backends/sam3.py` | **Run on real weights**, on the same laptop (MPS), through the SAM 3 implementation in Hugging Face `transformers`. One clip so far. CUDA and CPU not tried |
 | `backends/sam3d.py` | **Not run yet.** Gated checkpoint, and the code requires CUDA. Expect small fixes on first contact |
 
-So today real footage gives metric geometry, cameras, the floor and the walls.
-Separate objects need SAM 3 (or another segmenter behind the same interface),
-and that step has not been seen working on real images. A pull request with
-fixes, or with a result, is very welcome.
+So real footage goes all the way through: geometry, masks, separate objects,
+queries, edits, export. Every object is the convex hull of its measured
+points until SAM 3D Objects (or another completion backend) has been run.
+A pull request with fixes, or with a result, is very welcome.
 
-### What was observed with MapAnything
+## The first real scene
 
-One run, 13 November 2026. MapAnything 1.1.4 (commit `3d10cf7`), PyTorch 2.15,
-Python 3.13, a MacBook with an M5 Max and 36 GB of memory, device `mps`. The
-input was a 12.8 second hand-held phone video of a furnished room, 3840 x 2160
-HEVC at 60 frames per second, filmed in portrait.
+One run, 13 November 2026, on a MacBook with an M5 Max and 36 GB of memory,
+device `mps`, no CUDA. Python 3.13, PyTorch 2.15, MapAnything 1.1.4 (commit
+`3d10cf7`), transformers 5.22.2. The input was a 12.8 second hand-held phone
+video of a furnished room, 3840 x 2160 HEVC at 60 frames per second, filmed
+in portrait as a slow pan from one spot.
+
+```bash
+scenelift run room.mov -o room --export room.glb     # 2 min 23 s, weights already cached
+```
 
 | Step | Result |
 |---|---|
-| Keyframe selection (`ingest.load`) | 24 sharp keyframes, rotated upright, 720 x 1280, in about 10 s |
-| Loading the model | 106 s the first time, most of it the 4.9 GB checkpoint download |
-| Inference | 11.4 s for 24 frames, depth maps of 294 x 518 |
-| Depth | 88 to 99 percent of the pixels valid per frame, medians between 1.3 and 3.2 m, which is plausible for the room |
-| Scale harmonisation | The 24 views agree on scale to within 0.96 percent after correction |
-| Layout | Floor found, 4 wall planes, about 109,000 background points, 1.5 s on the CPU |
-| Studio | The saved scene opens: point cloud, 24 cameras, 24 keyframes |
+| Keyframes (`ingest.load`) | 24 sharp keyframes, rotated upright, 720 x 1280, in about 10 s |
+| Loading the models | MapAnything 15 s and SAM 3 4 s from the cache. The first time: 106 s and 52 s, most of it the 4.9 GB and 3.4 GB downloads |
+| Geometry | 19.8 s for 24 frames (two passes, see below), depth maps of 294 x 518 |
+| Scale harmonisation | The 24 views agree on scale to within 0.69 percent after correction |
+| Layout | Floor found, 4 wall planes, about 75,000 background points |
+| Segmentation | 88.7 s: 3.7 s per frame for the 37 default prompts, 578 masks |
+| Association, fusion, hulls, physics | 5.1 s on the CPU |
+| Scene | 107 objects. The large ones: an armchair of 1.27 x 1.13 x 1.02 m from 7 views, a bookcase of 1.71 x 0.39 x 2.05 m from 5, a shelf unit of 1.31 x 0.55 x 0.94 m from 9, a dog bed from 10, a rug from 9. Then 49 books, 14 figurines, 11 shelf boards, pictures, boxes |
+| Studio | The same video uploaded in the browser gives the same scene. Selection in a keyframe, measuring, fit checks and exports work on it |
 
 What this does **not** show: accuracy. Nothing in that room was measured with
-a tape, so the absolute scale is unchecked.
+a tape, so every size above is unchecked.
 
-Two things to look at next, both seen in this run and not yet investigated:
+### What the first contact broke, and what was changed
 
-1. **The focal length drifts.** A phone lens is fixed, yet the estimated focal
-   length went from 473 px in sharp frames down to 252 px in the middle of a
-   fast pan. Depth and focal length trade off against each other, so this
-   deserves a shared-intrinsics constraint across the frames of one video.
-2. **A wall was found twice**, as two nearly parallel planes a short distance
-   apart. The wall thresholds were set on the synthetic room.
+The first complete run was not usable: large pieces of furniture came out
+more than once, or in pieces. Three causes, all fixed:
+
+1. **Confidence was rescaled per frame by its value.** In frames where the
+   raw confidence is nearly flat with a few bright spots, a linear rescaling
+   pushed almost every pixel of a large plain surface under the threshold:
+   99 percent of the armchair was thrown away in four frames. The wrapper
+   now maps confidence by rank within the frame and drops the weakest 10
+   percent, which is MapAnything's own default.
+2. **The focal length drifted.** A phone lens is fixed, yet the estimate
+   went from 473 px in textured frames down to 252 px in frames that show
+   little but a bare wall, and the geometry broke there. For the frames of
+   one video the wrapper now runs the model twice and gives every frame the
+   confidence-weighted median of the first estimates. Estimates then stay
+   between 413 and 471 px. With this change and the previous one, the
+   view-to-view scale spread of the clip went from 0.96 to 0.69 percent.
+   Separate photos are left alone, because they may come
+   from different cameras. `MapAnythingBackend(share_intrinsics=...)`
+   overrides the choice.
+3. **Nested masks were taken for the same object.** "cabinet" returns one
+   mask for the bookcase with everything in it, so the voxels of a book lie
+   inside the voxels of the bookcase. Overlap was measured against the
+   smaller of the two, which is 100 percent for any content of any
+   container, so a book could take the place of the bookcase in a frame and
+   push the bookcase mask into a new object. Association now asks the
+   question in both directions, each time restricted to what the photo in
+   question can see (`assoc_cover`, design document step 6).
+
+Smaller things from the same run: an object that comes out a few centimetres
+below a floor that is not perfectly flat now rests on it instead of on the
+nearest wall; Studio shows name tags only for the largest objects of a
+crowded scene; and Studio no longer claims that every wall is square to the
+axes when one is not.
+
+### What is still wrong in that scene
+
+1. **Parts and contents are objects.** The boards of the shelf unit and the
+   books in the bookcase are objects of their own that overlap their
+   container, and the container's points still include them. 71 of the 107
+   objects carry an overlap flag, and the shelf unit is reported as resting
+   on one of its own boards.
+2. **Unseen bases.** With no completion backend, an object ends where the
+   camera stopped seeing it. Only 3 objects are on the floor; 33 are
+   reported as resting on a wall and 8 as floating, most of them wrongly.
+3. **One of the four wall planes is not a wall.** It stands 21 degrees off
+   the others.
+4. **The geometry gets worse along the pan.** Consecutive views agree to
+   about 1 cm where the clip starts and to 3 to 6 cm where it ends. A pan
+   from one spot gives the depth model little parallax, and its confidence
+   falls steadily with the distance from the first frame.
+5. **Thin objects.** Books standing side by side are thinner than the 5 cm
+   association grid and can be mixed up between views.
+6. **Which focal length is right is not known.** The confidence-weighted
+   median is a reasonable choice that no ground truth has confirmed.
 
 ## Licences
 
@@ -86,7 +138,7 @@ interfaces, with the SAM backends as an opt-in.
 | Mode | Geometry | Segmentation | Completion |
 |---|---|---|---|
 | Full | CUDA GPU | CUDA GPU | CUDA GPU (required by SAM 3D Objects) |
-| Laptop | Apple MPS: works, see above. CPU: not tried | MPS or CPU: not tried | none: convex hulls, flagged |
+| Laptop | Apple MPS: works, see above. CPU: not tried | Apple MPS: works, see above. CPU: not tried | none: convex hulls, flagged |
 
 ## Install
 
@@ -121,15 +173,28 @@ and its test suite passes on both.
 ### 3. SAM 3 (segmentation)
 
 ```bash
-git clone https://github.com/facebookresearch/sam3
-pip install -e sam3
+pip install transformers
 ```
 
-At the time of writing the SAM 3 checkpoints are gated on Hugging Face, with
-manual approval: request access on the [model page](https://huggingface.co/facebook/sam3),
-wait for it to be granted, and log in with `hf auth login` (or
-`huggingface-cli login`) before the first run. Follow the SAM 3 README if this
-has changed.
+scenelift uses the SAM 3 implementation that ships with Hugging Face
+`transformers` (5.22.2 was used; any version that has `Sam3Model` will do).
+It loads the official weights and is not tied to CUDA: the wrapper picks
+CUDA, then Apple MPS, then the CPU. Only MPS has been run. Meta's own [`sam3`](https://github.com/facebookresearch/sam3) package is
+not used: it imports `triton`, which exists for Linux with CUDA only, and it
+pins NumPy below 2.
+
+The weights, `facebook/sam3` (3.4 GB), are gated on Hugging Face, with manual
+approval:
+
+1. Request access on the [model page](https://huggingface.co/facebook/sam3)
+   and wait until the request is accepted.
+2. Create an access token. A fine-grained token needs the permission to read
+   public gated repositories.
+3. `hf auth login`, or set `HF_TOKEN` in the environment that starts
+   `python app.py` or `scenelift run`.
+
+Without access the first reconstruction stops with a message that says so.
+The weights are downloaded once, into `~/.cache/huggingface`.
 
 ### 4. SAM 3D Objects (completion, optional)
 
@@ -152,9 +217,12 @@ python app.py
 ```
 
 The badge in the top bar reads "Model backends ready" once MapAnything and
-SAM 3 can be imported, and `GET /api/system` lists each backend. Until both
-are there, Studio refuses uploads of real footage and says which one is
-missing. Then run the smoke test on a short video or a folder of photos:
+the SAM 3 implementation can be imported, and `GET /api/system` lists each
+backend. Until both are there, Studio refuses uploads of real footage and
+says which one is missing. Whether the gated weights can be downloaded is
+only known when the first reconstruction starts.
+
+Then run the smoke test on a short video or a folder of photos:
 
 ```bash
 SCENELIFT_TEST_INPUT=/path/to/room.mp4 pytest -q tests/test_backends_live.py
@@ -166,10 +234,10 @@ SCENELIFT_TEST_INPUT=/path/to/room.mp4 SAM3D_REPO=/path/to/sam-3d-objects \
 |---|---|---|
 | `test_geometry_backend_contract` | MapAnything | Shapes and types, depth in metres, confidence in 0 to 1, intrinsics, a rigid pose |
 | `test_geometry_through_the_core` | MapAnything | Real depth through scale harmonisation, gravity, floor and walls, fusion, save and load, with no masks |
-| `test_real_pipeline` | MapAnything and SAM 3 | The whole pipeline, with objects. Skipped while SAM 3 is missing |
+| `test_real_pipeline` | MapAnything and SAM 3 | The whole pipeline, with objects, saved and exported. Skipped without `transformers` or without access to the weights |
 
-The first two run on the first 8 keyframes. Together they took 26 s on the
-laptop above, with the checkpoint already cached.
+All three run on the first 8 keyframes. Together they took 111 s on the
+laptop above, with the weights already cached.
 
 ## Write your own backend
 

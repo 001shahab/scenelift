@@ -42,7 +42,8 @@ class SceneLift:
         if sam3d_repo:
             from .backends.sam3d import Sam3DObjectsBackend
             completer = Sam3DObjectsBackend(sam3d_repo)
-        return cls(MapAnythingBackend(device=device), Sam3Backend(cfg.prompts, device=device),
+        return cls(MapAnythingBackend(device=device, conf_at_floor=cfg.min_conf),
+                   Sam3Backend(cfg.prompts, device=device),
                    completer, cfg, **kw)
 
     def run(self, source, reference: Optional[tuple] = None) -> Scene:

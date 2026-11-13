@@ -5,7 +5,7 @@ import { Download } from 'lucide-react'
 import { useState } from 'react'
 
 import { api } from '@/api/client'
-import type { HistoryEntry, SceneDoc } from '@/api/types'
+import type { HistoryEntry, SceneDoc, Wall } from '@/api/types'
 import { Badge, Rows, Section, Switch } from '@/components/ui'
 import { percent, seconds, STAGE_TEXT, when } from '@/lib/format'
 import { useStudio } from '@/state/store'
@@ -111,6 +111,16 @@ function Exports({ scene }: { scene: SceneDoc }) {
   )
 }
 
+/** How many walls, and whether they are square to the scene axes: the X and Y
+ *  axes are turned onto the dominant wall, so every wall of a box-shaped room
+ *  is. One that is not is a slanted wall or a plane that is not a wall. */
+function wallSummary(walls: Wall[]): string {
+  if (walls.length === 0) return 'none found'
+  const square = walls.filter((w) => Math.max(Math.abs(w.normal[0]), Math.abs(w.normal[1])) > 0.985).length // within 10°
+  if (square === walls.length) return `${walls.length}, square to the axes`
+  return `${walls.length}, ${square} square to the axes`
+}
+
 export function SceneTab() {
   const scene = useStudio((s) => s.scene)!
   const timings = Object.entries(scene.timings).filter(([, t]) => typeof t === 'number')
@@ -124,7 +134,7 @@ export function SceneTab() {
       <Section title="Room">
         <Rows rows={[
           ['Floor', scene.layout.floor_found ? 'found, at z = 0' : 'not found: gravity prior used'],
-          ['Walls', scene.layout.walls.length ? `${scene.layout.walls.length}, square to the axes` : 'none found'],
+          ['Walls', wallSummary(scene.layout.walls)],
           ['Objects', String(scene.objects.length)],
           ['Keyframes', String(scene.cameras.length)],
           ['Units', `${scene.units}, ${scene.up_axis} up`],

@@ -62,7 +62,11 @@ def settle(scene, cfg: Config | None = None) -> None:
         was_removed_support = obj.support is not None and obj.support not in scene.objects \
             and obj.support not in ("floor", "wall")
         sup, gap = find_support(obj, scene, tol, any_distance=was_removed_support)
-        if abs(gap) <= tol or was_removed_support:
+        # A measured floor is never perfectly flat, so an object can come out a
+        # little below its support. Sunk into it by less than half its own
+        # height, it rests on it just as one hovering within the tolerance does.
+        sunk = -max(tol, 0.5 * obj.obb["size"][2])
+        if sunk <= gap <= tol or was_removed_support:
             obj.apply(make_transform(t=np.array([0.0, 0.0, -gap])))
             obj.support = sup
         elif obj.support == "wall" or _near_wall(obj, scene):

@@ -19,13 +19,14 @@ Implemented, with automated tests in `tests/test_studio.py`:
 
 - SceneLift Studio: a web application started with `python app.py`. It is a REST API over the library (`scenelift/studio/`, documented in `docs/API.md`) and a React front end (`frontend/`, compiled into `scenelift/studio/static`). It builds the synthetic room on a laptop CPU, shows the scene in 3D with observed and generated geometry in different colours, and exposes every edit, query and selection of this document. This is the first version of the interactive viewer of roadmap item M4.2. Real footage in Studio goes through the same backend wrappers as the command line, so the note below applies to it as well.
 
-Written, and run once on real model weights:
+Written, and run on real model weights on one clip:
 
-- The MapAnything wrapper in `scenelift/backends/`. On 13 November 2026 it ran unchanged on an Apple-silicon laptop (MPS) on one hand-held phone video of a room: 24 keyframes in 11 seconds, and the core then harmonised the 24 views to within 1 percent of each other and found the floor and the walls. Nothing in that room was measured with a tape, so this shows that the wrapper and the core accept real depth, not how accurate the result is. Two observations from that run are recorded in `docs/BACKENDS.md`: the estimated focal length drifts within one clip, and one wall was found twice.
+- The MapAnything and SAM 3 wrappers in `scenelift/backends/`. On 13 November 2026 they ran on an Apple-silicon laptop (MPS, no CUDA) on one hand-held phone video of a room. 24 keyframes became a scene of 107 separate objects in about two and a half minutes; the 24 views agree on scale to within 0.7 percent after harmonisation. Nothing in that room was measured with a tape, so this shows that the wrappers and the core accept real depth and real masks, not how accurate the result is.
+- That first contact changed the design in three places, each marked "from real footage" below: confidence is used as a rank (step 2), the frames of one video share one set of intrinsics (step 2), and association tests coverage in both directions, because a real segmenter returns nested masks (step 6). What is still wrong in that scene is listed in `docs/BACKENDS.md`.
 
 Written but not yet run on real model weights:
 
-- The wrappers for SAM 3 and SAM 3D Objects. They follow the usage shown in each project's README and demo code, read on 13 November 2026. Both checkpoints are gated and SAM 3D Objects requires CUDA, so expect small fixes on first contact. Until SAM 3 runs, no real scene with separated objects exists. `tests/test_backends_live.py` is the smoke test: its two geometry tests pass, its full-pipeline test is still skipped.
+- The wrapper for SAM 3D Objects. It follows the usage shown in the project's README and demo code, read on 13 November 2026. The checkpoint is gated and the code requires CUDA, so expect small fixes on first contact. Until it runs, every object of a real scene is the convex hull of its measured points. `tests/test_backends_live.py` is the smoke test: its three tests pass with MapAnything and SAM 3; completion is only exercised when `SAM3D_REPO` is set.
 
 Not built yet (see the roadmap in section 12):
 
@@ -137,8 +138,9 @@ Goal: for each frame, z-depth in metres, intrinsics, camera pose, confidence, va
 1. Write the frames to a temporary folder and load them with the backbone's own loader, so preprocessing matches training.
 2. Run one feed-forward pass over all frames with mixed precision on CUDA.
 3. Read per frame: `depth_z`, `intrinsics`, `camera_poses` (cam2world, OpenCV), `conf`, `mask`, and the resized image `img_no_norm`.
-4. Squash confidence to the range 0 to 1 per view using the 2nd and 98th percentiles, so one threshold works across scenes.
-5. Mark as invalid any pixel with non-finite or non-positive depth.
+4. One camera, one set of intrinsics (from real footage). When all frames come from one video, take the median of the estimated focal lengths and principal points, weighted by each frame's median confidence, and run the pass again with these intrinsics given as input. A phone lens does not change during a clip, but the free estimate drifted by a factor of almost two in frames with little texture. Separate photos are left alone.
+5. Confidence is a rank (from real footage). The raw confidence has no fixed scale, and its level changes from frame to frame. Map it to 0 to 1 by rank within the frame, so that the weakest 10 percent of the pixels fall below `min_conf` and the rest keep their order. An earlier version rescaled the values linearly between two percentiles; on frames with a nearly flat confidence map this discarded almost all of a large plain surface.
+6. Mark as invalid any pixel with non-finite or non-positive depth.
 
 All later steps work at the backbone's output resolution. The interface is `GeometryBackend.infer(frames) -> list[View]`. Any model that returns these fields can replace MapAnything.
 
@@ -212,14 +214,19 @@ Goal: decide which masks in different views are the same physical object.
 4. Quantise the points to voxels of `assoc_voxel` (5 cm) and pack each voxel index into one 64-bit key.
 5. Match against existing instances with overlap = shared voxels divided by the smaller voxel count.
 6. Required overlap is `assoc_overlap` (0.25). It rises to 0.5 if the labels differ and to 0.7 if one piece is less than a fifth of the other. This is the mug-on-table guard: a small object shares its contact voxels with a large one.
-7. One instance may not take two masks from the same view.
-8. No match: start a new instance. Match: union the voxels, add the observation, add a label vote weighted by score times area.
-9. Merge pass, for pairs never seen in the same view. Merge if voxel overlap passes the rule of step 6. Otherwise merge if labels agree and the projection test passes in both directions: at least `assoc_projection` (70 percent) of one instance's points project inside the other's masks and lie no farther behind its visible surface than its own size. This is the wide-baseline case, where two photos see opposite faces that share no 3D points.
-10. Drop instances seen in fewer than `min_views_per_object` views (2; relaxed to 1 for one or two input views).
+7. Coverage, in both directions (from real footage). Overlap over the smaller set is 1 for anything that lies inside something else, and a real segmenter returns such pairs all the time: the mask for "cabinet" covers the bookcase with every book in it. So a candidate must pass two more tests, each restricted to voxels a given photo actually looks at (inside the image, with valid depth, at the depth that photo measured):
+   - the mask must account for at least `assoc_cover` (0.3) of what its own view sees of the instance. A book mask does not account for the bookcase.
+   - the instance must already hold at least `assoc_cover` of what its own recent photos saw of the mask's voxels. Those photos saw the whole bookcase and gave little of it to the book, so a bookcase mask does not join a book.
 
-Verified: no duplicates with 2 views 130 degrees apart.
+   The restriction to visible voxels is what keeps an object that is half out of the frame, or half hidden, from failing the test. When a view sees fewer than `assoc_cover_min_voxels` (5) voxels, the test does not apply.
+8. One instance may not take two masks from the same view. Among the candidates that pass, the best one wins, scored by the lowest of its three shares.
+9. No match: start a new instance. Match: union the voxels, add the observation, add a label vote weighted by score times area.
+10. Merge pass, for pairs never seen in the same view. Merge if voxel overlap passes the rule of step 6. Otherwise merge if labels agree and the projection test passes in both directions: at least `assoc_projection` (70 percent) of one instance's points project inside the other's masks and lie no farther behind its visible surface than its own size. This is the wide-baseline case, where two photos see opposite faces that share no 3D points. Neither rule merges a pair when the photos of the smaller instance show much more of the larger one than the smaller accounts for: that is a part or a content, not the same object.
+11. Drop instances seen in fewer than `min_views_per_object` views (2; relaxed to 1 for one or two input views).
 
-Failure modes: two identical objects one behind the other along both viewing directions, and thin objects smaller than a voxel.
+Verified: no duplicates with 2 views 130 degrees apart. With nested masks on the synthetic room (a table mask that includes the box standing on it, in either score order), the table, the box and the cabinet come out as three objects.
+
+Failure modes: two identical objects one behind the other along both viewing directions, and thin objects smaller than a voxel. Parts and contents stay separate objects that overlap their container, and the container's points still include them; nothing yet records that a book is in the bookcase. Roadmap: a containment relation in the scene graph, and subtraction of the contents from the container.
 
 ### Step 7. Fusion (`fusion.py`)
 
@@ -262,7 +269,7 @@ Goal: nothing floats, nothing sinks, and the scene knows what stands on what.
 1. Give every object an upright box: minimum-area rectangle of its footprint, plus its height range.
 2. Process objects from the lowest bottom upward, so a supporter is already placed when its load is examined.
 3. Support candidates for object A: objects whose top is below A's centre and whose footprint contains at least 30 percent of a 5x5 grid of A's footprint. Pick the highest. If none, the floor.
-4. Gap = A's bottom minus the support's top. If |gap| is within max(`support_tol`, 10 percent of A's height), move A vertically by minus the gap and record the support.
+4. Gap = A's bottom minus the support's top. With tol = max(`support_tol`, 10 percent of A's height): if A hovers by at most tol, or is sunk into the support by at most max(tol, half of A's height), move A vertically by minus the gap and record the support. The sunk side is wider because a measured floor is not flat (from real footage): a rug came out 6 cm below the fitted floor plane.
 5. If the gap is larger and A is close to a wall plane, record support = "wall".
 6. Otherwise record no support and add the flag `floating`.
 7. For pairs not in a support relation whose height ranges overlap by more than 2 cm, run a separating-axis test on the footprints. An overlap up to `max_push` (4 cm) is resolved by pushing the smaller object sideways. A larger one is only flagged `overlaps:<id>`, because a chair tucked under a table overlaps its box legitimately.
@@ -331,7 +338,7 @@ scenelift's own code is Apache 2.0. Backends are separate installs and are never
 | Role | Default | Code and weights licence | Hardware |
 |---|---|---|---|
 | Geometry | MapAnything, checkpoint `facebook/map-anything-apache` | Apache 2.0 code, Apache 2.0 checkpoint | CUDA recommended; runs on Apple MPS; CPU not tried |
-| Segmentation | SAM 3 | SAM License (custom, not an OSI licence) | CUDA |
+| Segmentation | SAM 3, through Hugging Face `transformers` | SAM License (custom, not an OSI licence) | CUDA recommended; runs on Apple MPS; CPU not tried |
 | Completion | SAM 3D Objects | SAM License (custom, not an OSI licence) | CUDA required by its code |
 
 Points to act on:

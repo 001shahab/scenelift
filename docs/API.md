@@ -141,7 +141,7 @@ curl -X POST localhost:8000/api/scenes/demo \
 
 ### POST `/api/scenes/reconstruct`
 
-Multipart form. Needs MapAnything and SAM 3 on the server, otherwise `503`.
+Multipart form. Needs MapAnything and SAM 3 (`transformers`) on the server, otherwise `503`.
 
 | Field | Meaning |
 |---|---|

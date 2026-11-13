@@ -50,6 +50,8 @@ class Config:
     mask_nms_iou: float = 0.7
     assoc_voxel: float = 0.05
     assoc_overlap: float = 0.25
+    assoc_cover: float = 0.3  # share of an object, as one view sees it, that a mask must account for
+    assoc_cover_min_voxels: int = 5  # below this the view shows too little of the object to judge
     assoc_projection: float = 0.7  # share of one track's points that must fall in the other's masks
     min_views_per_object: int = 2  # automatically relaxed to 1 for 1-2 input views
     min_object_points: int = 80

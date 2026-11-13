@@ -215,3 +215,75 @@ def test_without_completer_uses_hull(world):
     s = SceneLift(SyntheticGeometry(world), SyntheticSegmenter(world), None, Config()).run_frames(world.frames())
     assert all(o.completion == "hull" for o in s.objects.values())
     assert s["box_1"].support == "table_1"
+
+
+class NestedMasks:
+    """A real segmenter answers "cabinet" with one mask that covers the cabinet
+    and everything in it, next to separate masks for the contents. Here the
+    table mask also covers the box that stands on it."""
+
+    def __init__(self, world, container_first: bool):
+        self.inner = SyntheticSegmenter(world)
+        self.container_first = container_first
+
+    def segment(self, views):
+        out = []
+        for masks in self.inner.segment(views):
+            by_label = {m.label: m for m in masks}
+            table, box = by_label.get("table"), by_label.get("box")
+            if table is not None and box is not None:
+                table.mask = table.mask | box.mask
+                table.score, box.score = (0.9, 0.6) if self.container_first else (0.6, 0.9)
+            out.append(masks)
+        return out
+
+
+@pytest.mark.parametrize("container_first", [True, False])
+def test_contents_are_not_their_container(world, container_first):
+    """Whichever mask the segmenter is surer of, the box stays a box and the
+    table stays one table."""
+    lift = SceneLift(SyntheticGeometry(world), NestedMasks(world, container_first),
+                     SyntheticCompleter(world), Config())
+    scene = lift.run_frames(world.frames())
+    assert sorted(scene.ids) == ["box_1", "cabinet_1", "table_1"]
+    L, W, H = (v.value for v in query.dimensions(scene, "box_1").values())
+    assert max(L, W, H) < 0.4, "the box swallowed the table"
+    assert scene["table_1"].n_views >= 8 and scene["box_1"].n_views >= 8
+
+
+def test_sunk_object_rests_on_the_floor(scene, tmp_path):
+    """A measured floor is not flat: an object that comes out below it is on it."""
+    s = fresh(scene, tmp_path)
+    s.translate("cabinet_1", (0.0, 0.0, -0.15), carry=False)  # more than the hover tolerance
+    s["cabinet_1"].support = None
+    s.settle()
+    assert s["cabinet_1"].support == "floor"
+    assert abs(s["cabinet_1"].bottom) < 1e-6
+
+
+def test_confidence_is_a_rank():
+    from scenelift.backends.mapanything import rank_confidence
+
+    raw = np.random.default_rng(0).lognormal(size=(60, 40)).astype(np.float32)
+    raw[:10] *= 50.0  # a few very confident rows must not push the rest to zero
+    conf = rank_confidence(raw, floor=0.10, at_floor=0.3)
+    assert conf.shape == raw.shape and 0.0 <= conf.min() and conf.max() <= 1.0
+    assert abs((conf < 0.3).mean() - 0.10) < 0.01
+    assert np.array_equal(np.argsort(raw, axis=None, kind="stable"), np.argsort(conf, axis=None, kind="stable"))
+
+
+def test_one_camera_one_set_of_intrinsics():
+    from scenelift.backends.mapanything import one_camera, shared_intrinsics
+    from scenelift.types import Frame
+
+    def K(f):
+        return np.array([[f, 0.0, 147.0], [0.0, f, 259.0], [0.0, 0.0, 1.0]])
+
+    # the two frames that show a blank wall are far off, and the model knows it
+    shared = shared_intrinsics([K(470), K(468), K(252), K(300), K(466)], [9.0, 8.0, 1.0, 1.0, 7.0])
+    assert shared[0, 0] == 468 and shared[1, 1] == 468 and shared[0, 2] == 147
+
+    image = np.zeros((4, 4, 3), np.uint8)
+    assert one_camera([Frame(0, image, "a.mp4#1", 0.0), Frame(1, image, "a.mp4#9", 0.3)])
+    assert not one_camera([Frame(0, image, "a.jpg"), Frame(1, image, "b.jpg")])
+    assert not one_camera([Frame(0, image, "a.mp4#1", 0.0)])
