@@ -89,6 +89,15 @@ with no ground truth. Measured accuracy on real scenes is the next milestone, an
 [results on your own footage](https://github.com/001shahab/scenelift/issues/new?template=real_scene_result.yml)
 are the most useful contribution you can make.
 
+### The story so far
+
+The first day of scenelift, narrated as a nature documentary by
+[RepoDocumentary](https://github.com/001shahab/RepoDocumentary) from the commit history.
+
+<p align="center">
+  <img src="scenelift-documentary.png" alt="Scenelift: A New Species Takes Shape, a RepoDocumentary nature documentary of the project's first day" width="720">
+</p>
+
 ## Contents
 
 - [Why scenelift](#why-scenelift)
